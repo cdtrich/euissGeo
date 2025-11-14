@@ -1,0 +1,39 @@
+Package: euissGeo
+Type: Package
+Title: EUISS Geospatial Analysis Tools
+Version: 0.1.0
+Author: cd_trich
+Maintainer: <christian.g.dietrich@gmail.com>
+Description: Specialized geospatial analysis functions for EUISS workflows. 
+    Provides tools for cartographic visualization, spatial data processing, 
+    coordinate transformations, and integration with European statistical data sources.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.3.3
+Depends: 
+    R (>= 4.0.0),
+    euissR (>= 0.1.2)
+Imports:
+    dplyr,
+    sf,
+    ggplot2,
+    terra,
+    rnaturalearth,
+    giscoR,
+    tmaptools,
+    countrycode,
+    stringr,
+    tidyr,
+    progress,
+    purrr,
+    tibble,
+    grDevices,
+    utils,
+    cartogram,
+    magrittr,
+    rlang,
+    data.table
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

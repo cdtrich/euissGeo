@@ -1,0 +1,20 @@
+# R files
+.Rhistory
+.Rdata
+.httr-oauth
+.DS_Store
+.Rproj.user
+
+# Package build
+*.tar.gz
+*.zip
+
+# IDE
+.vscode/
+*.Rproj.user
+
+# Logs
+*.log
+
+# Temp files
+*~
