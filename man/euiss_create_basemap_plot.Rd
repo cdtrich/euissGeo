@@ -11,35 +11,41 @@ euiss_create_basemap_plot(
   urban,
   urban_labels,
   lakes,
+  rivers,
+  admin,
   target_country,
   ras_name,
   crs,
-  colors
+  colors,
+  show_graticule
 )
 }
 \arguments{
-\item{countries}{Country boundaries}
+\item{countries}{sf object with country boundaries}
 
-\item{raster}{Raster elevation data}
+\item{raster}{Raster data as tibble (optional)}
 
-\item{roads}{Roads data}
+\item{roads}{sf object with roads (optional)}
 
-\item{urban}{Urban areas}
+\item{urban}{sf object with urban areas (optional)}
 
-\item{urban_labels}{Urban labels}
+\item{urban_labels}{sf object with labels (optional)}
 
-\item{lakes}{Lakes data}
+\item{lakes}{sf object with lakes (optional)}
 
-\item{target_country}{Target country name}
+\item{rivers}{sf object with rivers (optional)}
 
-\item{ras_name}{Raster variable name}
+\item{admin}{sf object with admin boundaries (optional)}
 
-\item{crs}{Coordinate system}
+\item{target_country}{Name of target country}
 
-\item{colors}{Color scheme}
-}
-\value{
-ggplot2 object
+\item{ras_name}{Name of raster layer}
+
+\item{crs}{Coordinate reference system}
+
+\item{colors}{Named list of colors}
+
+\item{show_graticule}{Show lat/lon grid?}
 }
 \description{
 Create the final basemap plot

@@ -2,7 +2,7 @@
 % Please edit documentation in R/spatial-join.R
 \name{euiss_left_join}
 \alias{euiss_left_join}
-\title{Left join a data frame with a Simple Features (sf) object using country codes}
+\title{Left join data frame with sf object using country codes}
 \usage{
 euiss_left_join(
   df,
@@ -17,61 +17,59 @@ euiss_left_join(
 )
 }
 \arguments{
-\item{df}{A data frame containing country information.}
+\item{df}{Data frame containing country information.}
 
-\item{sf}{A Simple Features (sf) object with country codes as one of the columns.}
+\item{sf}{Simple Features (sf) object with country codes.}
 
-\item{country}{The name of the column in the data frame containing country names.}
+\item{country}{Name of the column in df containing country names.}
 
-\item{by}{A character vector specifying the columns to join on, with format c("df_column" = "sf_column").}
+\item{by}{Join specification: c("df_column" = "sf_column").}
 
-\item{country_format}{Format for country matching. Options: "auto", "iso3c", "iso2c", "country.name".}
+\item{country_format}{Format for country matching: "auto", "iso3c", "iso2c", "country.name".}
 
-\item{handle_kosovo}{Logical. Should Kosovo be handled specially? Default TRUE.}
+\item{handle_kosovo}{Handle Kosovo specially? (default: TRUE)}
 
-\item{kosovo_code}{ISO3 code to use for Kosovo. Default "KOS".}
+\item{kosovo_code}{ISO3 code for Kosovo (default: "KOS").}
 
-\item{verbose}{Logical. Print information about country matching? Default FALSE.}
+\item{verbose}{Print information about country matching? (default: FALSE)}
 
-\item{...}{Additional arguments passed to 'left_join' function from 'dplyr'.}
+\item{...}{Additional arguments passed to dplyr::left_join().}
 }
 \value{
-A data frame with the result of the left join operation.
+Data frame with result of left join operation.
 }
 \description{
-This function performs a left join between a data frame and a Simple Features (sf) object
-based on country codes. It uses the 'countrycode' package to convert country names
-to ISO3 codes before joining, with special handling for Kosovo and other edge cases.
+Performs a left join between a data frame and an sf object based on country codes.
+Uses countrycode package to convert country names to ISO3 codes before joining,
+with special handling for Kosovo and other edge cases.
 }
 \details{
-This function enhances standard spatial joins by automatically handling country name
-standardization. It converts various country name formats to ISO codes for reliable
-matching with spatial data.
+Enhances standard spatial joins by automatically handling country name standardization.
 
-Special cases handled:
+Special cases:
 \itemize{
   \item Kosovo (assigns custom ISO3 code)
   \item Country name variations (uses countrycode package)
-  \item Missing country matches (reports unmatched countries)
+  \item Missing matches (reports unmatched countries)
 }
 }
 \examples{
 \dontrun{
-# Example data frame with country information
+# Example data
 df <- data.frame(
   country = c("United States", "Canada", "Germany", "Kosovo"),
   value = c(100, 200, 150, 75)
 )
 
-# Load GISCO countries data
+# Load GISCO data
 countries_sf <- euiss_gisco(res = "20")
 
 # Perform spatial join
 result <- euiss_left_join(df, countries_sf, country = "country")
 
-# Custom join column names
+# Custom join columns
 result <- euiss_left_join(
-  df, countries_sf, 
+  df, countries_sf,
   country = "country",
   by = c("iso3c" = "ISO3_CODE")
 )

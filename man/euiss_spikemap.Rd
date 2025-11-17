@@ -2,7 +2,7 @@
 % Please edit documentation in R/visualization.R
 \name{euiss_spikemap}
 \alias{euiss_spikemap}
-\title{Transform Simple Features object into spike coordinates for spike maps}
+\title{Create spike map coordinates from spatial data}
 \usage{
 euiss_spikemap(
   data,
@@ -17,59 +17,53 @@ euiss_spikemap(
 )
 }
 \arguments{
-\item{data}{A Simple Features (sf) object with polygon or point geometries.}
+\item{data}{Simple Features (sf) object with polygon or point geometries.}
 
-\item{val}{The variable name representing the height/value of spikes (unquoted).}
+\item{val}{Variable name for spike height/value (unquoted).}
 
-\item{fact}{Scaling factor to control the height of spikes relative to the map.}
+\item{fact}{Scaling factor for spike height relative to map extent.}
 
-\item{spread}{The width factor for spike base. If NULL, defaults to fact/50.}
+\item{spread}{Width factor for spike base. If NULL, defaults to fact/50.}
 
-\item{of_largest_polygon}{Logical. For multipolygons, use centroid of largest polygon? Default TRUE.}
+\item{of_largest_polygon}{For multipolygons, use largest polygon centroid? (default: TRUE)}
 
-\item{drop_geom}{Logical. Should the geometry column be dropped from output? Default TRUE.}
+\item{drop_geom}{Drop geometry column from output? (default: TRUE)}
 
-\item{polygon_format}{Logical. Return data formatted for geom_polygon()? Default TRUE.}
+\item{polygon_format}{Return data for geom_polygon()? (default: TRUE)}
 
 \item{min_value}{Minimum value threshold - spikes below this won't be drawn.}
 
-\item{max_spikes}{Maximum number of spikes to draw (for performance).}
+\item{max_spikes}{Maximum number of spikes to draw (keeps largest values).}
 }
 \value{
-A data frame with coordinates for creating spike visualizations.
-        If polygon_format=TRUE, returns data suitable for geom_polygon().
-        If FALSE, returns line format for backward compatibility.
+Data frame with coordinates for spike visualizations.
 }
 \description{
-This function transforms a Simple Features (sf) object into coordinate data for
-creating spike visualizations. Spikes are triangular representations where 
-height corresponds to data values, useful for showing quantitative data on maps.
+Transforms sf object into coordinates for spike visualizations where height
+represents data values. Spikes are triangular shapes extending from polygon centroids.
 }
 \details{
-The function creates triangular spikes where:
+Creates triangular spikes where:
 \itemize{
-  \item Base width is controlled by \code{spread}
-  \item Height is proportional to \code{val * fact}
-  \item Base is positioned at polygon centroid
+  \item Base width controlled by \code{spread}
+  \item Height proportional to \code{val * fact}
+  \item Base positioned at polygon centroid
   \item Peak extends upward from centroid
 }
 
-For best results, experiment with the \code{fact} parameter to get appropriate
-spike heights relative to your map extent. Typical values range from 0.0001 to 100000
-depending on your coordinate system and data range.
+Experiment with \code{fact} parameter for appropriate spike heights.
+Typical values: 0.0001 to 100000 depending on coordinate system and data range.
 }
 \examples{
 \dontrun{
 # Load country data
 countries <- euiss_gisco(res = "20")
-
-# Add some sample data
 countries$population <- runif(nrow(countries), 1e6, 1e8)
 
 # Create spike data
 spike_data <- euiss_spikemap(
-  countries, 
-  val = population, 
+  countries,
+  val = population,
   fact = 100000
 )
 
@@ -77,17 +71,12 @@ spike_data <- euiss_spikemap(
 library(ggplot2)
 ggplot() +
   geom_sf(data = countries, fill = "lightgray") +
-  geom_polygon(data = spike_data, aes(x = x, y = y, group = spike_id, fill = population)) +
+  geom_polygon(
+    data = spike_data,
+    aes(x = x, y = y, group = spike_id, fill = val),
+    color = "darkred"
+  ) +
   theme_void()
-
-# Custom spike parameters
-spike_data_custom <- euiss_spikemap(
-  countries,
-  val = population,
-  fact = 50000,
-  spread = 20000,
-  min_value = 5e6
-)
 }
 
 }

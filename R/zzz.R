@@ -1,4 +1,4 @@
-#' Package initialization functions
+#' Package Initialization and Hooks
 #' 
 #' Functions that run when the package is loaded or attached.
 #' 
@@ -6,89 +6,82 @@
 #' @keywords internal
 NULL
 
-#' Initialize package environment and check dependencies
+# Package environment for storing configuration and cached data
+.euissGeo_env <- new.env(parent = emptyenv())
+
+#' Package load hook
 #' @param libname Library name (unused)
 #' @param pkgname Package name (unused)
 #' @keywords internal
+#' @noRd
 .onLoad <- function(libname, pkgname) {
   
-  # Initialize package environment variables
+  # Initialize package environment
   assign("initialized", FALSE, envir = .euissGeo_env)
   assign("data_paths", list(), envir = .euissGeo_env)
   assign("config_cache", list(), envir = .euissGeo_env)
   
-  # Check for critical dependencies silently
+  # Check critical dependencies silently
   critical_deps <- c("sf", "dplyr", "ggplot2")
-  missing_critical <- character(0)
+  missing_critical <- critical_deps[!sapply(critical_deps, requireNamespace, quietly = TRUE)]
   
-  for (pkg in critical_deps) {
-    if (!requireNamespace(pkg, quietly = TRUE)) {
-      missing_critical <- c(missing_critical, pkg)
-    }
-  }
-  
-  # Store dependency status
   assign("missing_critical_deps", missing_critical, envir = .euissGeo_env)
   
   # Try to configure default paths silently
-  tryCatch({
-    default_paths <- euiss_configure_paths(create_missing = FALSE, verbose = FALSE)
-    assign("default_paths", default_paths, envir = .euissGeo_env)
-  }, error = function(e) {
-    # Fail silently during load
-  })
+  default_paths <- tryCatch({
+    euiss_configure_paths(create_missing = FALSE, verbose = FALSE)
+  }, error = function(e) NULL)
   
-  # Mark as initialized
+  assign("default_paths", default_paths, envir = .euissGeo_env)
   assign("initialized", TRUE, envir = .euissGeo_env)
+  
+  invisible()
 }
 
-#' Package attachment message
+#' Package attach hook
 #' @param libname Library name (unused)  
 #' @param pkgname Package name (unused)
 #' @keywords internal
+#' @noRd
 .onAttach <- function(libname, pkgname) {
   
-  # Get package version
   pkg_version <- utils::packageVersion("euissGeo")
   
-  # Basic welcome message
   packageStartupMessage(
-    paste0("euissGeo ", pkg_version, " loaded successfully."),
-    "\nEnhanced geospatial analysis for EUISS research."
+    "euissGeo ", pkg_version, "\n",
+    "Enhanced geospatial analysis for EUISS research"
   )
   
   # Check for missing critical dependencies
-  if (exists("missing_critical_deps", envir = .euissGeo_env)) {
-    missing_critical <- get("missing_critical_deps", envir = .euissGeo_env)
-    
-    if (length(missing_critical) > 0) {
-      packageStartupMessage(
-        "Warning: Missing critical dependencies: ", 
-        paste(missing_critical, collapse = ", "),
-        "\nInstall with: install.packages(c(", 
-        paste0('"', missing_critical, '"', collapse = ", "), "))"
-      )
-    }
+  missing_critical <- get0("missing_critical_deps", envir = .euissGeo_env, ifnotfound = character(0))
+  
+  if (length(missing_critical) > 0) {
+    packageStartupMessage(
+      "WARNING: Missing critical dependencies: ", 
+      paste(missing_critical, collapse = ", "), "\n",
+      "Install with: install.packages(c('", 
+      paste(missing_critical, collapse = "', '"), "'))"
+    )
   }
   
   # Check euissR integration
   if (requireNamespace("euissR", quietly = TRUE)) {
-    packageStartupMessage("euissR integration available - enhanced styling enabled.")
+    packageStartupMessage("euissR integration: enabled")
   } else {
     packageStartupMessage(
-      "Install euissR for enhanced styling: devtools::install_github('cdtrich/euissR')"
+      "For EUISS styling: devtools::install_github('cdtrich/euissR')"
     )
   }
   
-  # Suggest configuration check
-  packageStartupMessage(
-    "Use euiss_check_setup() to verify package configuration."
-  )
+  packageStartupMessage("Use euiss_check_setup() to verify configuration")
+  
+  invisible()
 }
 
-#' Package detachment cleanup
+#' Package unload hook
 #' @param libpath Library path (unused)
 #' @keywords internal  
+#' @noRd
 .onUnload <- function(libpath) {
   
   # Clean up package environment
@@ -96,21 +89,22 @@ NULL
     rm(list = ls(envir = .euissGeo_env), envir = .euissGeo_env)
   }
   
-  # Clean up any temporary files or connections
-  # (Add specific cleanup code here if needed)
+  invisible()
 }
 
 #' Check if package is properly initialized
 #' @return Logical indicating initialization status
 #' @keywords internal
+#' @noRd
 .is_initialized <- function() {
   exists("initialized", envir = .euissGeo_env) && 
-    get("initialized", envir = .euissGeo_env)
+    isTRUE(get("initialized", envir = .euissGeo_env))
 }
 
-#' Get package environment for testing/debugging
+#' Get package environment (for testing/debugging)
 #' @return Package environment
 #' @keywords internal
+#' @noRd
 .get_pkg_env <- function() {
   .euissGeo_env
 }

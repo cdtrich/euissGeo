@@ -1,4 +1,7 @@
-mv .gitignore .gitignore.bak
-git add .
-git commit -m "Initial commit"
-mv .gitignore.bak .gitignore
+.RData
+.Rhistory
+.Rproj.user/
+.httr-oauth
+.DS_Store
+*.tar.gz
+*.log

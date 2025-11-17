@@ -16,40 +16,40 @@ euiss_gisco(
 )
 }
 \arguments{
-\item{res}{Resolution of the map data. Options: "60", "20", "10", "03", "01" (in million scale).}
+\item{res}{Resolution of map data: "60", "20", "10", "03", "01" (million scale).}
 
-\item{verbose}{Logical indicating whether to print additional information during execution.}
+\item{verbose}{Print additional information during execution? (default: TRUE)}
 
-\item{type}{Type of geographic data. Currently, only "countries" is supported.}
+\item{type}{Type of geographic data (default: "countries").}
 
-\item{shp}{Shape of the data. Options: "RG" (regions), "BN" (boundaries), "LB" (labels).}
+\item{shp}{Shape of data: "RG" (regions), "BN" (boundaries), "LB" (labels).}
 
-\item{bordertype}{Type of boundary for "BN" shape. Options: "INLAND" or "COASTL".}
+\item{bordertype}{Boundary type for "BN" shape: "INLAND" or "COASTL".}
 
-\item{year}{Year of the NUTS regulation. Options: "2024", "2020", "2016", "2013", "2010", "2006", "2003".}
+\item{year}{NUTS regulation year: "2024", "2020", "2016", "2013", "2010", "2006", "2003".}
 
-\item{crs}{Coordinate reference system. Options: "4326" (WGS84), "3035" (ETRS 1989), "3857" (Web Mercator).}
+\item{crs}{Coordinate reference system: "4326" (WGS84), "3035" (ETRS89), "3857" (Web Mercator).}
 
-\item{data_path}{Base path for GISCO data. If NULL, uses configured paths from euiss_configure_paths().}
+\item{data_path}{Base path for GISCO data. If NULL, uses configured paths.}
 }
 \value{
-A Simple Features (sf) object containing the requested geographic data.
+Simple Features (sf) object with requested geographic data.
 }
 \description{
-This function fetches geographic data from the Eurostat GISCO service based on specified parameters.
-The data is retrieved from local shapefile archives with support for different spatial types, 
-resolutions, years, projections, boundary types, and country subsets.
+Fetches geographic data from Eurostat GISCO service. Data is retrieved from
+local shapefile archives with support for different spatial types, resolutions,
+years, projections, boundary types, and country subsets.
 }
 \details{
-This function expects GISCO data to be downloaded and available locally. The data structure
-should follow GISCO's naming conventions:
-\code{ref-countries-YYYY-SSm.shp.zip} where YYYY is year and SS is resolution.
+Expects GISCO data to be downloaded and available locally. Data structure
+should follow GISCO naming conventions:
+\code{ref-countries-YYYY-SSm.shp.zip}
 
 Use \code{euiss_check_gisco_data()} to verify available data files.
 }
 \examples{
 \dontrun{
-# Retrieve countries at 20M resolution for 2024 in WGS84
+# Retrieve countries at 20M resolution
 countries <- euiss_gisco(res = "20", verbose = TRUE)
 
 # Get country boundaries only

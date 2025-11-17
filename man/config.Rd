@@ -6,4 +6,3 @@
 \description{
 euissGeo Package Configuration Functions
 }
-\keyword{internal}

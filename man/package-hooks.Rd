@@ -2,7 +2,7 @@
 % Please edit documentation in R/zzz.R
 \name{package-hooks}
 \alias{package-hooks}
-\title{Package initialization functions}
+\title{Package Initialization and Hooks}
 \description{
 Functions that run when the package is loaded or attached.
 }

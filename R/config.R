@@ -1,21 +1,19 @@
 #' euissGeo Package Configuration Functions
 #' 
 #' @name config
-#' @keywords internal
 NULL
 
 #' Configure data paths for EUISS geospatial functions
 #'
-#' This function sets up and validates data paths for various geospatial data sources
-#' used by euissGeo functions. It provides intelligent fallbacks and cross-platform
-#' compatibility.
+#' Sets up and validates data paths for various geospatial data sources.
+#' Provides intelligent fallbacks and cross-platform compatibility.
 #'
-#' @param data_path Optional custom base data path. If NULL, uses environment variables or defaults
-#' @param gisco_path Optional specific path for GISCO data
-#' @param ne_path Optional specific path for Natural Earth data  
-#' @param raster_path Optional specific path for raster data
-#' @param create_missing Logical. Should missing directories be created? Default TRUE
-#' @param verbose Logical. Print path information? Default FALSE
+#' @param data_path Optional custom base data path. If NULL, uses environment variables or defaults.
+#' @param gisco_path Optional specific path for GISCO data.
+#' @param ne_path Optional specific path for Natural Earth data.
+#' @param raster_path Optional specific path for raster data.
+#' @param create_missing Create missing directories? (default: TRUE)
+#' @param verbose Print path information? (default: FALSE)
 #'
 #' @return Named list with configured paths:
 #' \describe{
@@ -26,13 +24,13 @@ NULL
 #' }
 #'
 #' @details
-#' The function tries to locate data in the following order:
+#' Path resolution order:
 #' 1. User-provided paths
-#' 2. Environment variables (EUISS_DATA_PATH, EUISS_GISCO_PATH, etc.)
+#' 2. Environment variables (EUISS_DATA_PATH, etc.)
 #' 3. Common default locations
 #' 4. Temporary directory as fallback
 #'
-#' Environment variables can be set in .Renviron:
+#' Set environment variables in .Renviron:
 #' \code{EUISS_DATA_PATH="/path/to/your/data"}
 #'
 #' @examples
@@ -50,86 +48,52 @@ NULL
 #'
 #' @export
 euiss_configure_paths <- function(data_path = NULL,
-                                 gisco_path = NULL,
-                                 ne_path = NULL,
-                                 raster_path = NULL,
-                                 create_missing = TRUE,
-                                 verbose = FALSE) {
+                                  gisco_path = NULL,
+                                  ne_path = NULL,
+                                  raster_path = NULL,
+                                  create_missing = TRUE,
+                                  verbose = FALSE) {
   
-  # Configure base data path
-  if (is.null(data_path)) {
-    # Try environment variable first
-    env_path <- Sys.getenv("EUISS_DATA_PATH")
-    if (env_path != "") {
-      data_path <- env_path
-    } else {
-      # Try common locations
-      possible_paths <- c(
-        "D:/data",           # Original Windows path
-        "~/data",            # User home data
-        "./data",            # Relative to working directory
-        "/data",             # Unix system data
-        file.path(getwd(), "data")  # Working directory data
-      )
-      
-      data_path <- Find(dir.exists, possible_paths)
-      
-      if (is.null(data_path)) {
-        # Use temporary directory as last resort
-        data_path <- file.path(tempdir(), "euiss_data")
-        if (verbose) {
-          message("No existing data directory found. Using temporary: ", data_path)
+  # Resolve base data path
+  data_path <- .resolve_base_path(data_path, verbose)
+  
+  # Resolve component paths
+  gisco_path <- .resolve_component_path(
+    gisco_path, 
+    env_var = "EUISS_GISCO_PATH",
+    default_subdir = "giscoR",
+    base_path = data_path
+  )
+  
+  ne_path <- .resolve_component_path(
+    ne_path,
+    env_var = "EUISS_NE_PATH", 
+    default_subdir = "natural_earth",
+    base_path = data_path
+  )
+  
+  raster_path <- .resolve_component_path(
+    raster_path,
+    env_var = "EUISS_RASTER_PATH",
+    default_subdir = "raster", 
+    base_path = data_path
+  )
+  
+  # Create directories if needed
+  all_paths <- c(data_path, gisco_path, ne_path, raster_path)
+  
+  if (create_missing) {
+    for (path in all_paths) {
+      if (!dir.exists(path)) {
+        created <- dir.create(path, recursive = TRUE, showWarnings = FALSE)
+        if (created && verbose) {
+          message("Created directory: ", path)
         }
       }
     }
   }
   
-  # Validate base path
-  if (!dir.exists(data_path) && create_missing) {
-    dir.create(data_path, recursive = TRUE, showWarnings = FALSE)
-    if (verbose) message("Created data directory: ", data_path)
-  }
-  
-  # Configure GISCO path
-  if (is.null(gisco_path)) {
-    env_gisco <- Sys.getenv("EUISS_GISCO_PATH")
-    if (env_gisco != "") {
-      gisco_path <- env_gisco
-    } else {
-      gisco_path <- file.path(data_path, "giscoR")
-    }
-  }
-  
-  # Configure Natural Earth path
-  if (is.null(ne_path)) {
-    env_ne <- Sys.getenv("EUISS_NE_PATH")
-    if (env_ne != "") {
-      ne_path <- env_ne
-    } else {
-      ne_path <- file.path(data_path, "natural_earth")
-    }
-  }
-  
-  # Configure raster path
-  if (is.null(raster_path)) {
-    env_raster <- Sys.getenv("EUISS_RASTER_PATH")
-    if (env_raster != "") {
-      raster_path <- env_raster
-    } else {
-      raster_path <- file.path(data_path, "raster")
-    }
-  }
-  
-  # Create missing directories if requested
-  if (create_missing) {
-    for (path in c(gisco_path, ne_path, raster_path)) {
-      if (!dir.exists(path)) {
-        dir.create(path, recursive = TRUE, showWarnings = FALSE)
-        if (verbose) message("Created directory: ", path)
-      }
-    }
-  }
-  
+  # Build result list
   paths <- list(
     base = normalizePath(data_path, mustWork = FALSE),
     gisco = normalizePath(gisco_path, mustWork = FALSE),
@@ -137,15 +101,81 @@ euiss_configure_paths <- function(data_path = NULL,
     raster = normalizePath(raster_path, mustWork = FALSE)
   )
   
+  # Print summary if requested
   if (verbose) {
-    message("Configured paths:")
+    message("\nConfigured paths:")
     for (name in names(paths)) {
-      status <- if (dir.exists(paths[[name]])) "EXISTS" else "MISSING"
-      message("  ", name, ": ", paths[[name]], " [", status, "]")
+      exists_flag <- if (dir.exists(paths[[name]])) "EXISTS" else "MISSING"
+      message("  ", name, ": ", paths[[name]], " [", exists_flag, "]")
     }
   }
   
-  return(paths)
+  paths
+}
+
+#' Resolve base data path with fallbacks
+#' @keywords internal
+#' @noRd
+.resolve_base_path <- function(data_path, verbose = FALSE) {
+  
+  if (!is.null(data_path)) {
+    return(data_path)
+  }
+  
+  # Try environment variable
+  env_path <- Sys.getenv("EUISS_DATA_PATH", unset = "")
+  if (env_path != "") {
+    if (verbose) message("Using EUISS_DATA_PATH: ", env_path)
+    return(env_path)
+  }
+  
+  # Try common locations
+  possible_paths <- c(
+    "D:/data",                    # Original Windows path
+    "~/data",                     # User home data
+    file.path(getwd(), "data"),   # Working directory data
+    "./data",                     # Relative path
+    "/data"                       # Unix system data
+  )
+  
+  for (path in possible_paths) {
+    expanded <- path.expand(path)
+    if (dir.exists(expanded)) {
+      if (verbose) message("Found data directory: ", expanded)
+      return(expanded)
+    }
+  }
+  
+  # Fallback to temporary directory
+  temp_data <- file.path(tempdir(), "euiss_data")
+  if (verbose) {
+    message("No data directory found. Using temporary: ", temp_data)
+  }
+  
+  temp_data
+}
+
+#' Resolve component path (gisco, natural_earth, raster)
+#' @keywords internal
+#' @noRd
+.resolve_component_path <- function(component_path, 
+                                    env_var, 
+                                    default_subdir,
+                                    base_path) {
+  
+  # User-provided path takes precedence
+  if (!is.null(component_path)) {
+    return(component_path)
+  }
+  
+  # Try environment variable
+  env_value <- Sys.getenv(env_var, unset = "")
+  if (env_value != "") {
+    return(env_value)
+  }
+  
+  # Default to subdirectory of base path
+  file.path(base_path, default_subdir)
 }
 
 #' Get EUISS package configuration
@@ -157,38 +187,68 @@ euiss_configure_paths <- function(data_path = NULL,
 #' @export
 euiss_get_config <- function() {
   
-  paths <- euiss_configure_paths()
+  paths <- euiss_configure_paths(verbose = FALSE)
   
   # Check data availability
   data_status <- list(
-    gisco_available = length(list.files(paths$gisco, pattern = "\\.zip$")) > 0,
-    ne_available = length(list.files(paths$natural_earth, recursive = TRUE)) > 0,
-    raster_available = length(list.files(paths$raster, pattern = "\\.tif$", recursive = TRUE)) > 0
+    gisco_available = .check_gisco_data(paths$gisco),
+    ne_available = .check_ne_data(paths$natural_earth),
+    raster_available = .check_raster_data(paths$raster)
   )
   
   # Check package dependencies
-  deps <- c("sf", "terra", "dplyr", "ggplot2", "rnaturalearth", "giscoR", 
-           "tmaptools", "countrycode", "cartogram", "progress")
+  required_deps <- c("sf", "terra", "dplyr", "ggplot2")
+  suggested_deps <- c("rnaturalearth", "giscoR", "tmaptools", 
+                      "countrycode", "cartogram", "progress")
   
-  deps_status <- sapply(deps, function(pkg) {
-    requireNamespace(pkg, quietly = TRUE)
-  })
+  deps_status <- list(
+    required_available = vapply(required_deps, requireNamespace, logical(1), quietly = TRUE),
+    suggested_available = vapply(suggested_deps, requireNamespace, logical(1), quietly = TRUE)
+  )
   
   # Check euissR integration
   euissR_available <- requireNamespace("euissR", quietly = TRUE)
   
-  config <- list(
+  list(
+    version = utils::packageVersion("euissGeo"),
     paths = paths,
     data_status = data_status,
     dependencies = list(
-      available = names(deps_status)[deps_status],
-      missing = names(deps_status)[!deps_status]
+      required = list(
+        available = names(deps_status$required_available)[deps_status$required_available],
+        missing = names(deps_status$required_available)[!deps_status$required_available]
+      ),
+      suggested = list(
+        available = names(deps_status$suggested_available)[deps_status$suggested_available],
+        missing = names(deps_status$suggested_available)[!deps_status$suggested_available]
+      )
     ),
-    euissR_integration = euissR_available,
-    version = utils::packageVersion("euissGeo")
+    euissR_integration = euissR_available
   )
-  
-  return(config)
+}
+
+#' Check for GISCO data files
+#' @keywords internal
+#' @noRd
+.check_gisco_data <- function(path) {
+  if (!dir.exists(path)) return(FALSE)
+  length(list.files(path, pattern = "\\.zip$")) > 0
+}
+
+#' Check for Natural Earth data files
+#' @keywords internal
+#' @noRd
+.check_ne_data <- function(path) {
+  if (!dir.exists(path)) return(FALSE)
+  length(list.files(path, recursive = TRUE)) > 0
+}
+
+#' Check for raster data files
+#' @keywords internal
+#' @noRd
+.check_raster_data <- function(path) {
+  if (!dir.exists(path)) return(FALSE)
+  length(list.files(path, pattern = "\\.tif$", recursive = TRUE)) > 0
 }
 
 #' Print package configuration summary
@@ -200,36 +260,62 @@ euiss_check_setup <- function() {
   
   config <- euiss_get_config()
   
+  # Print version
+  cat("Version:", as.character(config$version), "\n\n")
+  
   # Print paths
   cat("Data Paths:\n")
   for (name in names(config$paths)) {
-    status <- if (dir.exists(config$paths[[name]])) "✓" else "✗"
-    cat("  ", status, " ", name, ": ", config$paths[[name]], "\n")
+    exists <- dir.exists(config$paths[[name]])
+    symbol <- .get_check_symbol(exists)
+    cat("  ", symbol, " ", name, ": ", config$paths[[name]], "\n", sep = "")
   }
   
   # Print data availability
   cat("\nData Availability:\n")
-  for (name in names(config$data_status)) {
-    status <- if (config$data_status[[name]]) "✓" else "✗"
-    cat("  ", status, " ", gsub("_", " ", name), "\n")
+  data_labels <- c(
+    gisco_available = "GISCO data",
+    ne_available = "Natural Earth data",
+    raster_available = "Raster data"
+  )
+  
+  for (key in names(config$data_status)) {
+    symbol <- .get_check_symbol(config$data_status[[key]])
+    label <- data_labels[key]
+    cat("  ", symbol, " ", label, "\n", sep = "")
   }
   
   # Print dependencies
-  cat("\nDependencies:\n")
-  if (length(config$dependencies$available) > 0) {
-    cat("  ✓ Available:", paste(config$dependencies$available, collapse = ", "), "\n")
+  cat("\nRequired Dependencies:\n")
+  if (length(config$dependencies$required$available) > 0) {
+    cat("  ", .get_check_symbol(TRUE), " Available: ", 
+        paste(config$dependencies$required$available, collapse = ", "), "\n", sep = "")
   }
-  if (length(config$dependencies$missing) > 0) {
-    cat("  ✗ Missing:", paste(config$dependencies$missing, collapse = ", "), "\n")
-    cat("    Install with: install.packages(c(", 
-        paste0('"', config$dependencies$missing, '"', collapse = ", "), "))\n")
+  if (length(config$dependencies$required$missing) > 0) {
+    cat("  ", .get_check_symbol(FALSE), " Missing: ", 
+        paste(config$dependencies$required$missing, collapse = ", "), "\n", sep = "")
+    cat("    Install with: install.packages(c('", 
+        paste(config$dependencies$required$missing, collapse = "', '"), "'))\n", sep = "")
+  }
+  
+  # Print suggested dependencies
+  if (length(config$dependencies$suggested$missing) > 0) {
+    cat("\nSuggested Dependencies (optional):\n")
+    cat("  Missing: ", paste(config$dependencies$suggested$missing, collapse = ", "), "\n", sep = "")
   }
   
   # Print euissR status
-  euiss_status <- if (config$euissR_integration) "✓ Available" else "✗ Not available"
-  cat("  euissR Integration:", euiss_status, "\n")
+  cat("\neuissR Integration: ")
+  if (config$euissR_integration) {
+    cat(.get_check_symbol(TRUE), " Available\n", sep = "")
+  } else {
+    cat(.get_check_symbol(FALSE), " Not available\n", sep = "")
+    cat("  Install with: devtools::install_github('cdtrich/euissR')\n")
+  }
   
-  cat("\nFor help configuring paths, see ?euiss_configure_paths\n")
+  cat("\nFor help: ?euiss_configure_paths\n")
+  
+  invisible(config)
 }
 
 #' Set environment variable for data paths
@@ -237,50 +323,64 @@ euiss_check_setup <- function() {
 #' Helper function to set environment variables for persistent path configuration.
 #' 
 #' @param data_path Base data path
-#' @param permanent Logical. Should this be saved permanently? Requires .Renviron edit
+#' @param permanent Save to .Renviron file? (default: FALSE)
+#' 
 #' @export
 euiss_set_data_path <- function(data_path, permanent = FALSE) {
   
   # Validate path
   if (!dir.exists(data_path)) {
-    stop("Directory does not exist: ", data_path)
+    stop("Directory does not exist: ", data_path, call. = FALSE)
   }
   
-  # Set environment variable for current session
-  Sys.setenv(EUISS_DATA_PATH = normalizePath(data_path))
+  # Normalize path
+  data_path_normalized <- normalizePath(data_path)
   
-  message("Set EUISS_DATA_PATH to: ", normalizePath(data_path))
+  # Set for current session
+  Sys.setenv(EUISS_DATA_PATH = data_path_normalized)
+  message("Set EUISS_DATA_PATH to: ", data_path_normalized)
   
+  # Make permanent if requested
   if (permanent) {
-    # Check if .Renviron exists
-    renviron_path <- file.path(Sys.getenv("HOME"), ".Renviron")
-    
-    if (file.exists(renviron_path)) {
-      # Read existing .Renviron
-      renviron_lines <- readLines(renviron_path)
-      
-      # Check if EUISS_DATA_PATH already exists
-      existing_line <- grep("^EUISS_DATA_PATH=", renviron_lines)
-      
-      if (length(existing_line) > 0) {
-        # Update existing line
-        renviron_lines[existing_line[1]] <- paste0("EUISS_DATA_PATH=", normalizePath(data_path))
-        message("Updated existing EUISS_DATA_PATH in .Renviron")
-      } else {
-        # Add new line
-        renviron_lines <- c(renviron_lines, paste0("EUISS_DATA_PATH=", normalizePath(data_path)))
-        message("Added EUISS_DATA_PATH to .Renviron")
-      }
-      
-      # Write back to .Renviron
-      writeLines(renviron_lines, renviron_path)
-      
-    } else {
-      # Create new .Renviron
-      writeLines(paste0("EUISS_DATA_PATH=", normalizePath(data_path)), renviron_path)
-      message("Created .Renviron with EUISS_DATA_PATH")
-    }
-    
-    message("Restart R session for permanent changes to take effect.")
+    .write_to_renviron("EUISS_DATA_PATH", data_path_normalized)
+    message("Restart R for permanent changes to take effect")
   }
+  
+  invisible(data_path_normalized)
+}
+
+#' Write environment variable to .Renviron
+#' @keywords internal
+#' @noRd
+.write_to_renviron <- function(var_name, var_value) {
+  
+  renviron_path <- file.path(Sys.getenv("HOME"), ".Renviron")
+  
+  # Read existing or create empty
+  if (file.exists(renviron_path)) {
+    lines <- readLines(renviron_path, warn = FALSE)
+  } else {
+    lines <- character(0)
+  }
+  
+  # Check if variable exists
+  pattern <- paste0("^", var_name, "=")
+  existing_idx <- grep(pattern, lines)
+  
+  new_line <- paste0(var_name, "=", var_value)
+  
+  if (length(existing_idx) > 0) {
+    # Update existing
+    lines[existing_idx[1]] <- new_line
+    message("Updated ", var_name, " in .Renviron")
+  } else {
+    # Add new
+    lines <- c(lines, new_line)
+    message("Added ", var_name, " to .Renviron")
+  }
+  
+  # Write back
+  writeLines(lines, renviron_path)
+  
+  invisible(TRUE)
 }

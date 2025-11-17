@@ -2,42 +2,26 @@
 % Please edit documentation in R/gisco-data.R
 \name{euiss_download_gisco}
 \alias{euiss_download_gisco}
-\title{Download GISCO data from Eurostat}
+\title{Download GISCO data from Eurostat (REMOVED - Not Implemented)}
 \usage{
-euiss_download_gisco(
-  res = "60",
-  year = "2024",
-  type = "countries",
-  dest_path = NULL,
-  force = FALSE,
-  timeout = 300
-)
+euiss_download_gisco(...)
 }
 \arguments{
-\item{res}{Resolution to download}
-
-\item{year}{Year to download}
-
-\item{type}{Data type to download}
-
-\item{dest_path}{Destination path for downloads}
-
-\item{force}{Re-download even if file exists}
-
-\item{timeout}{Download timeout in seconds}
+\item{...}{All parameters (ignored)}
+}
+\value{
+Error with download instructions
 }
 \description{
-This function downloads GISCO geographic data directly from Eurostat's servers.
-Note: This is a placeholder for future implementation of automated downloads.
+This function has been removed as automated downloading was not implemented.
 }
 \details{
-Currently, this function provides download URLs and instructions for manual download.
-Future versions will implement automated downloading.
-}
-\examples{
-\dontrun{
-# Get download information
-euiss_download_gisco(res = "20", year = "2024")
+To download GISCO data:
+\enumerate{
+  \item Visit: \url{https://gisco-services.ec.europa.eu/distribution/v2/countries/}
+  \item Download desired resolution files (e.g., ref-countries-2024-20m.shp.zip)
+  \item Save to your GISCO data directory
 }
 
+Check your data directory with: \code{euiss_get_config()$paths$gisco}
 }

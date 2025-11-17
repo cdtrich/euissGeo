@@ -17,49 +17,51 @@ euiss_coords_to_sf(
 \arguments{
 \item{df}{A data frame containing coordinates as a single column.}
 
-\item{coords}{The name of the coordinates column in the data frame.}
+\item{coords}{Name of the coordinates column in the data frame.}
 
-\item{sep}{The separator used in the coordinates column to separate x and y values.}
+\item{sep}{Separator used between coordinates (default: ", ").}
 
-\item{x}{The name for the x coordinate variable after separation.}
+\item{x}{Name for x coordinate (longitude) after separation (default: "x").}
 
-\item{y}{The name for the y coordinate variable after separation.}
+\item{y}{Name for y coordinate (latitude) after separation (default: "y").}
 
-\item{remove}{Logical; should the original coordinates column be removed?}
+\item{remove}{Remove original coordinates column? (default: TRUE)}
 
-\item{crs}{The coordinate reference system (CRS) code to be used. Default is EPSG 4326 (WGS 84).}
+\item{crs}{Coordinate reference system. Default is EPSG:4326 (WGS84).}
 }
 \value{
-A Simple Features (sf) object with point geometries based on the coordinates.
+Simple Features (sf) object with point geometries.
 }
 \description{
-This function takes a data frame containing coordinates as a single column and converts it
-into a Simple Features (sf) object. It assumes that the coordinates column contains 
-two values separated by a specified separator.
+Takes a data frame with coordinates as a single column (e.g., "48.8566, 2.3522")
+and converts it into a Simple Features (sf) object with point geometries.
 }
 \details{
-The function expects coordinates in the format "y, x" (latitude, longitude) by default.
-This follows the common convention where latitude is listed first. If your data
-has coordinates in "x, y" format, adjust the x and y parameter names accordingly.
+The function expects coordinates in "latitude, longitude" format by default.
+This follows the common convention where latitude (y) is listed first.
+
+Coordinate validation includes:
+\itemize{
+  \item Checking for valid numeric values
+  \item Warning if lat/lon appear outside valid ranges
+  \item Handling missing values gracefully
+}
 }
 \examples{
-# Example data frame with coordinates
-data <- data.frame(
-  location = c("Paris", "London", "Berlin"),
+# Basic usage
+cities <- data.frame(
+  name = c("Paris", "London", "Berlin"),
   coords = c("48.8566, 2.3522", "51.5074, -0.1278", "52.5200, 13.4050"),
   population = c(2161000, 8982000, 3669000)
 )
 
-# Convert coordinates to sf object
-sf_data <- euiss_coords_to_sf(data, coords = "coords")
+sf_cities <- euiss_coords_to_sf(cities, coords = "coords")
 
-\dontrun{
-# Custom separator and column names
-data2 <- data.frame(
+# Custom separator
+cities2 <- data.frame(
   name = "Rome",
   position = "41.9028|12.4964"
 )
-sf_data2 <- euiss_coords_to_sf(data2, coords = "position", sep = "|")
-}
+sf_cities2 <- euiss_coords_to_sf(cities2, coords = "position", sep = "|")
 
 }

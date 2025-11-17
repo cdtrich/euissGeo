@@ -7,44 +7,46 @@ NULL
 
 #' Convert coordinates in a data frame to Simple Features (sf) object
 #'
-#' This function takes a data frame containing coordinates as a single column and converts it
-#' into a Simple Features (sf) object. It assumes that the coordinates column contains 
-#' two values separated by a specified separator.
+#' Takes a data frame with coordinates as a single column (e.g., "48.8566, 2.3522")
+#' and converts it into a Simple Features (sf) object with point geometries.
 #'
 #' @param df A data frame containing coordinates as a single column.
-#' @param coords The name of the coordinates column in the data frame.
-#' @param sep The separator used in the coordinates column to separate x and y values.
-#' @param x The name for the x coordinate variable after separation.
-#' @param y The name for the y coordinate variable after separation.
-#' @param remove Logical; should the original coordinates column be removed?
-#' @param crs The coordinate reference system (CRS) code to be used. Default is EPSG 4326 (WGS 84).
+#' @param coords Name of the coordinates column in the data frame.
+#' @param sep Separator used between coordinates (default: ", ").
+#' @param x Name for x coordinate (longitude) after separation (default: "x").
+#' @param y Name for y coordinate (latitude) after separation (default: "y").
+#' @param remove Remove original coordinates column? (default: TRUE)
+#' @param crs Coordinate reference system. Default is EPSG:4326 (WGS84).
 #'
-#' @return A Simple Features (sf) object with point geometries based on the coordinates.
+#' @return Simple Features (sf) object with point geometries.
 #'
 #' @details
-#' The function expects coordinates in the format "y, x" (latitude, longitude) by default.
-#' This follows the common convention where latitude is listed first. If your data
-#' has coordinates in "x, y" format, adjust the x and y parameter names accordingly.
+#' The function expects coordinates in "latitude, longitude" format by default.
+#' This follows the common convention where latitude (y) is listed first.
+#' 
+#' Coordinate validation includes:
+#' \itemize{
+#'   \item Checking for valid numeric values
+#'   \item Warning if lat/lon appear outside valid ranges
+#'   \item Handling missing values gracefully
+#' }
 #'
 #' @examples
-#' # Example data frame with coordinates
-#' data <- data.frame(
-#'   location = c("Paris", "London", "Berlin"),
+#' # Basic usage
+#' cities <- data.frame(
+#'   name = c("Paris", "London", "Berlin"),
 #'   coords = c("48.8566, 2.3522", "51.5074, -0.1278", "52.5200, 13.4050"),
 #'   population = c(2161000, 8982000, 3669000)
 #' )
-#'
-#' # Convert coordinates to sf object
-#' sf_data <- euiss_coords_to_sf(data, coords = "coords")
 #' 
-#' \dontrun{
-#' # Custom separator and column names
-#' data2 <- data.frame(
+#' sf_cities <- euiss_coords_to_sf(cities, coords = "coords")
+#' 
+#' # Custom separator
+#' cities2 <- data.frame(
 #'   name = "Rome",
 #'   position = "41.9028|12.4964"
 #' )
-#' sf_data2 <- euiss_coords_to_sf(data2, coords = "position", sep = "|")
-#' }
+#' sf_cities2 <- euiss_coords_to_sf(cities2, coords = "position", sep = "|")
 #'
 #' @import dplyr
 #' @import sf
@@ -61,56 +63,84 @@ euiss_coords_to_sf <- function(df,
   
   # Input validation
   if (!is.data.frame(df)) {
-    stop("`df` must be a data frame")
+    stop("`df` must be a data frame", call. = FALSE)
   }
   
   if (nrow(df) == 0) {
-    stop("`df` must have at least one row")
+    stop("`df` must have at least one row", call. = FALSE)
   }
   
   if (!coords %in% names(df)) {
-    stop("Column '", coords, "' not found in data frame. Available columns: ", 
-         paste(names(df), collapse = ", "))
-  }
-  
-  # Check if coordinates column contains the separator
-  coords_sample <- df[[coords]][!is.na(df[[coords]])]
-  if (length(coords_sample) == 0) {
-    stop("No non-missing values found in coordinates column")
-  }
-  
-  has_sep <- any(grepl(sep, coords_sample, fixed = TRUE))
-  if (!has_sep) {
-    # Show sample values to help diagnose the issue
-    sample_vals <- head(coords_sample, 3)
-    stop("Separator '", sep, "' not found in coordinates column.\n",
-         "Sample values: ", paste(sample_vals, collapse = ", "), "\n",
-         "Check your separator or coordinate format.")
+    stop(
+      "Column '", coords, "' not found in data frame.\n",
+      "Available columns: ", paste(names(df), collapse = ", "),
+      call. = FALSE
+    )
   }
   
   # Validate CRS
   if (!is.numeric(crs) && !is.character(crs)) {
-    stop("`crs` must be numeric EPSG code or character CRS string")
+    stop("`crs` must be numeric EPSG code or character CRS string", call. = FALSE)
   }
   
-  # Separate coordinates with error handling
+  # Check for separator in data
+  coords_sample <- df[[coords]][!is.na(df[[coords]])]
+  
+  if (length(coords_sample) == 0) {
+    stop("No non-missing values found in coordinates column", call. = FALSE)
+  }
+  
+  has_sep <- any(grepl(sep, coords_sample, fixed = TRUE))
+  if (!has_sep) {
+    stop(
+      "Separator '", sep, "' not found in coordinates column.\n",
+      "Sample values: ", paste(head(coords_sample, 3), collapse = " | "), "\n",
+      "Check your separator or coordinate format.",
+      call. = FALSE
+    )
+  }
+  
+  # Split coordinates using fixed string matching (avoids regex issues)
   result <- tryCatch({
-    df %>%
-      tidyr::separate(.data[[coords]], 
-                     into = c(y, x),  # Note: y first (lat, lon convention)
-                     sep = sep, 
-                     convert = TRUE,
-                     remove = remove,
-                     extra = "drop",    # Handle extra separators gracefully
-                     fill = "right")    # Handle missing values
+    coords_split <- strsplit(df[[coords]], sep, fixed = TRUE)
+    
+    # Convert to coordinate columns
+    coords_matrix <- do.call(rbind, lapply(coords_split, function(x) {
+      if (length(x) >= 2) {
+        c(as.numeric(trimws(x[1])), as.numeric(trimws(x[2])))
+      } else {
+        c(NA_real_, NA_real_)
+      }
+    }))
+    
+    # Create result data frame
+    result_df <- df
+    result_df[[y]] <- coords_matrix[, 1]
+    result_df[[x]] <- coords_matrix[, 2]
+    
+    # Remove original coords column if requested
+    if (remove) {
+      result_df[[coords]] <- NULL
+    }
+    
+    result_df
+    
   }, error = function(e) {
-    stop("Failed to separate coordinates. Error: ", e$message, "\n",
-         "Check that your data uses the separator '", sep, "' between coordinates.")
+    stop(
+      "Failed to separate coordinates.\n",
+      "Error: ", e$message, "\n",
+      "Check that your data uses separator '", sep, "' correctly.",
+      call. = FALSE
+    )
   })
   
-  # Check for successful coordinate conversion
+  # Validate that coordinate columns were created
   if (!x %in% names(result) || !y %in% names(result)) {
-    stop("Failed to create coordinate columns. Check your separator and data format.")
+    stop(
+      "Failed to create coordinate columns '", x, "' and '", y, "'.\n",
+      "Check your separator and data format.",
+      call. = FALSE
+    )
   }
   
   # Validate coordinate values
@@ -118,114 +148,146 @@ euiss_coords_to_sf <- function(df,
   y_vals <- result[[y]]
   
   if (all(is.na(x_vals)) || all(is.na(y_vals))) {
-    stop("All coordinate values are missing after conversion. Check your data format.")
+    stop(
+      "All coordinate values are missing after conversion.\n",
+      "Check your data format and separator.",
+      call. = FALSE
+    )
   }
   
-  # Check for reasonable coordinate ranges (assuming geographic coordinates)
-  if (is.numeric(crs) && crs == 4326) {
+  # Warn about out-of-range coordinates (for geographic CRS)
+  if ((is.numeric(crs) && crs == 4326) || 
+      (is.character(crs) && grepl("4326", crs))) {
+    
     if (any(abs(y_vals) > 90, na.rm = TRUE)) {
-      warning("Some latitude values are outside valid range [-90, 90]. ",
-              "Check coordinate order - should be 'latitude, longitude'.")
+      warning(
+        "Some latitude values outside valid range [-90, 90].\n",
+        "Check coordinate order - expecting 'latitude, longitude'.",
+        call. = FALSE
+      )
     }
+    
     if (any(abs(x_vals) > 180, na.rm = TRUE)) {
-      warning("Some longitude values are outside valid range [-180, 180]. ",
-              "Check coordinate format and values.")
+      warning(
+        "Some longitude values outside valid range [-180, 180].\n",
+        "Check coordinate format and values.",
+        call. = FALSE
+      )
     }
   }
   
   # Convert to sf object
   sf_result <- tryCatch({
-    sf::st_as_sf(result, coords = c(x, y), crs = crs)
+    result %>%
+      dplyr::filter(!is.na(!!rlang::sym(x)), !is.na(!!rlang::sym(y))) %>%
+      sf::st_as_sf(coords = c(x, y), crs = crs, remove = TRUE)
   }, error = function(e) {
-    stop("Failed to create sf object. Error: ", e$message, "\n",
-         "Check coordinate values and CRS specification.")
+    stop(
+      "Failed to create sf object.\n",
+      "Error: ", e$message,
+      call. = FALSE
+    )
   })
   
-  return(sf_result)
+  # Report if rows were dropped
+  n_dropped <- nrow(result) - nrow(sf_result)
+  if (n_dropped > 0) {
+    warning(
+      n_dropped, " row(s) with missing coordinates were excluded",
+      call. = FALSE
+    )
+  }
+  
+  sf_result
 }
 
 #' Extract coordinates from Simple Features (sf) object
 #'
-#' This function extracts coordinate values from an sf object and returns them
-#' as separate columns or as a combined coordinates column.
+#' Extracts coordinate values from sf object and returns them as separate
+#' columns or as a combined coordinates column.
 #'
-#' @param sf_data A Simple Features (sf) object with point geometries.
-#' @param format Output format. Either "separate" (x and y columns) or "combined" (single coords column).
-#' @param x_name Name for the x coordinate column (longitude).
-#' @param y_name Name for the y coordinate column (latitude).
-#' @param coords_name Name for combined coordinates column.
-#' @param sep Separator for combined coordinates (when format = "combined").
-#' @param digits Number of decimal places for coordinates.
-#' @param drop_geometry Logical; should the geometry column be dropped?
+#' @param sf_data Simple Features (sf) object with point geometries.
+#' @param format Output format: "separate" (x and y columns) or "combined" (single column).
+#' @param x_name Name for x coordinate column (longitude) (default: "x").
+#' @param y_name Name for y coordinate column (latitude) (default: "y").
+#' @param coords_name Name for combined coordinates column (default: "coords").
+#' @param sep Separator for combined coordinates (default: ", ").
+#' @param digits Number of decimal places for coordinates (default: 6).
+#' @param drop_geometry Drop geometry column from output? (default: TRUE)
 #'
 #' @return Data frame with extracted coordinates.
 #'
 #' @examples
 #' # Create sample sf data
-#' data <- data.frame(
+#' cities <- data.frame(
 #'   name = c("Paris", "London"),
 #'   coords = c("48.8566, 2.3522", "51.5074, -0.1278")
 #' )
-#' sf_data <- euiss_coords_to_sf(data, coords = "coords")
+#' sf_cities <- euiss_coords_to_sf(cities, coords = "coords")
 #' 
 #' # Extract as separate columns
-#' coords_separate <- euiss_sf_to_coords(sf_data, format = "separate")
+#' coords_separate <- euiss_sf_to_coords(sf_cities, format = "separate")
 #' 
 #' # Extract as combined column
-#' coords_combined <- euiss_sf_to_coords(sf_data, format = "combined", sep = " | ")
+#' coords_combined <- euiss_sf_to_coords(sf_cities, format = "combined")
 #'
 #' @import sf
 #' @import dplyr
 #'
 #' @export
 euiss_sf_to_coords <- function(sf_data,
-                              format = "separate",
-                              x_name = "x",
-                              y_name = "y", 
-                              coords_name = "coords",
-                              sep = ", ",
-                              digits = 6,
-                              drop_geometry = TRUE) {
+                               format = "separate",
+                               x_name = "longitude",
+                               y_name = "latitude",
+                               coords_name = "coords",
+                               sep = ", ",
+                               digits = 6,
+                               drop_geometry = TRUE) {
   
   # Input validation
   if (!inherits(sf_data, "sf")) {
-    stop("`sf_data` must be a Simple Features (sf) object")
+    stop("`sf_data` must be a Simple Features (sf) object", call. = FALSE)
   }
   
   if (nrow(sf_data) == 0) {
-    stop("`sf_data` must have at least one row")
+    stop("`sf_data` must have at least one row", call. = FALSE)
   }
   
   if (!format %in% c("separate", "combined")) {
-    stop("`format` must be either 'separate' or 'combined'")
+    stop("`format` must be either 'separate' or 'combined'", call. = FALSE)
   }
   
   # Check geometry type
-  geom_type <- unique(sf::st_geometry_type(sf_data))
-  if (length(geom_type) > 1 || !geom_type %in% c("POINT", "MULTIPOINT")) {
-    warning("Function designed for POINT geometries. Results may be unexpected for other geometry types.")
+  geom_types <- unique(sf::st_geometry_type(sf_data))
+  if (!all(geom_types %in% c("POINT", "MULTIPOINT"))) {
+    warning(
+      "Function designed for POINT geometries. ",
+      "Found: ", paste(geom_types, collapse = ", "), ". ",
+      "Results may be unexpected.",
+      call. = FALSE
+    )
   }
   
   # Extract coordinates
   coords_matrix <- tryCatch({
     sf::st_coordinates(sf_data)
   }, error = function(e) {
-    stop("Failed to extract coordinates from sf object: ", e$message)
+    stop("Failed to extract coordinates: ", e$message, call. = FALSE)
   })
   
   if (ncol(coords_matrix) < 2) {
-    stop("Could not extract X,Y coordinates from sf object")
+    stop("Could not extract X,Y coordinates from sf object", call. = FALSE)
   }
   
   # Round coordinates
   x_coords <- round(coords_matrix[, 1], digits)
   y_coords <- round(coords_matrix[, 2], digits)
   
-  # Start with the original data (without geometry if requested)
+  # Start with original data
   if (drop_geometry) {
     result <- sf::st_drop_geometry(sf_data)
   } else {
-    result <- sf_data
+    result <- as.data.frame(sf_data)
   }
   
   # Add coordinates in requested format
@@ -235,188 +297,230 @@ euiss_sf_to_coords <- function(sf_data,
     
   } else if (format == "combined") {
     # Combine as "y, x" (latitude, longitude convention)
-    combined_coords <- paste(y_coords, x_coords, sep = sep)
-    result[[coords_name]] <- combined_coords
+    result[[coords_name]] <- paste(y_coords, x_coords, sep = sep)
   }
   
-  return(result)
+  result
 }
 
 #' Convert character coordinates to decimal degrees
 #'
-#' This function converts coordinates from various character formats (DMS, DM, etc.)
-#' to decimal degrees. Supports multiple input formats commonly found in geographic data.
+#' Converts coordinates from various character formats (DMS, DM, decimal)
+#' to decimal degrees. Supports multiple common geographic coordinate formats.
 #'
-#' @param coord_string Character string containing coordinate information.
-#' @param format Expected input format. Options: "auto", "dms", "dm", "decimal".
-#' @param hemisphere_column Optional column name containing hemisphere information (N/S/E/W).
+#' @param coord_string Character vector of coordinate strings.
+#' @param format Expected input format: "auto", "dms", "dm", or "decimal".
 #' 
-#' @return Numeric value in decimal degrees.
+#' @return Numeric vector in decimal degrees.
 #'
 #' @details
 #' Supported input formats:
 #' \itemize{
-#'   \item DMS: "48°51'29.5\"N" or "48 51 29.5 N"
-#'   \item DM: "48°51.492'N" or "48 51.492 N" 
+#'   \item DMS (Degrees Minutes Seconds): "48°51'29.5\"N" or "48 51 29.5 N"
+#'   \item DM (Degrees Decimal Minutes): "48°51.492'N" or "48 51.492 N"
 #'   \item Decimal: "48.8582" or "48.8582°N"
 #' }
+#' 
+#' Hemisphere indicators (N/S/E/W) automatically determine sign.
+#' South and West are negative.
 #'
 #' @examples
 #' # DMS format
-#' euiss_coords_char2dec("48°51'29.5\"N")
-#' euiss_coords_char2dec("2°21'7.9\"E")
+#' euiss_coords_char2dec("48°51'29.5\"N")  # Returns 48.85819
+#' euiss_coords_char2dec("2°21'7.9\"E")    # Returns 2.35219
 #' 
-#' # DM format  
-#' euiss_coords_char2dec("48°51.492'N")
+#' # DM format
+#' euiss_coords_char2dec("48°51.492'N")    # Returns 48.8582
 #' 
 #' # Decimal format
-#' euiss_coords_char2dec("48.8582°N")
-#' euiss_coords_char2dec("-2.3522")
+#' euiss_coords_char2dec("48.8582°N")      # Returns 48.8582
+#' euiss_coords_char2dec("-2.3522")        # Returns -2.3522
+#'  
+#' # Auto-detect format
+#' coords <- c("48°51'29.5\"N", "48°51.492'N", "48.8582")
+#' euiss_coords_char2dec(coords, format = "auto")
 #'
 #' @import stringr
 #'
 #' @export
-euiss_coords_char2dec <- function(coord_string, format = "auto", hemisphere_column = NULL) {
+euiss_coords_char2dec <- function(coord_string, format = "auto") {
   
   # Input validation
   if (!is.character(coord_string)) {
-    stop("`coord_string` must be a character vector")
+    stop("`coord_string` must be a character vector", call. = FALSE)
   }
   
-  if (any(is.na(coord_string))) {
-    warning("Missing values detected in coordinate strings")
+  # Process each coordinate
+  vapply(coord_string, .parse_single_coord, numeric(1), format = format)
+}
+
+#' Parse single coordinate string
+#' @keywords internal
+#' @noRd
+.parse_single_coord <- function(coord, format) {
+  
+  if (is.na(coord) || coord == "" || is.null(coord)) {
+    return(NA_real_)
   }
   
-  # Process each coordinate string
-  results <- sapply(coord_string, function(coord) {
-    
-    if (is.na(coord) || coord == "" || is.null(coord)) {
-      return(NA_real_)
-    }
-    
-    # Clean the string
-    coord_clean <- stringr::str_trim(coord)
-    
-    # Determine hemisphere (N/S/E/W)
-    hemisphere <- ""
-    if (stringr::str_detect(coord_clean, "[NSEW]")) {
-      hemisphere <- stringr::str_extract(coord_clean, "[NSEW]")
-      # Remove hemisphere from string for parsing
-      coord_clean <- stringr::str_remove(coord_clean, "[NSEW]")
-    }
-    
-    # Auto-detect format if needed
-    if (format == "auto") {
-      if (stringr::str_detect(coord_clean, "°.*'.*\"")) {
-        detected_format <- "dms"
-      } else if (stringr::str_detect(coord_clean, "°.*'")) {
-        detected_format <- "dm"
-      } else {
-        detected_format <- "decimal"
-      }
-    } else {
-      detected_format <- format
-    }
-    
-    # Parse based on detected format
-    decimal_value <- tryCatch({
-      
-      if (detected_format == "dms") {
-        # Degrees, Minutes, Seconds: 48°51'29.5"
-        parts <- stringr::str_extract_all(coord_clean, "[0-9]+\\.?[0-9]*")[[1]]
-        if (length(parts) >= 3) {
-          degrees <- as.numeric(parts[1])
-          minutes <- as.numeric(parts[2])
-          seconds <- as.numeric(parts[3])
-          degrees + minutes/60 + seconds/3600
-        } else {
-          NA_real_
-        }
-        
-      } else if (detected_format == "dm") {
-        # Degrees, Decimal Minutes: 48°51.492'
-        parts <- stringr::str_extract_all(coord_clean, "[0-9]+\\.?[0-9]*")[[1]]
-        if (length(parts) >= 2) {
-          degrees <- as.numeric(parts[1])
-          minutes <- as.numeric(parts[2])
-          degrees + minutes/60
-        } else {
-          NA_real_
-        }
-        
-      } else {
-        # Decimal degrees: 48.8582
-        # Extract numeric value, removing any symbols
-        numeric_part <- stringr::str_extract(coord_clean, "-?[0-9]+\\.?[0-9]*")
-        as.numeric(numeric_part)
-      }
-      
-    }, error = function(e) {
-      warning("Failed to parse coordinate: ", coord, " - ", e$message)
-      NA_real_
-    })
-    
-    # Apply hemisphere correction
-    if (!is.na(decimal_value) && hemisphere %in% c("S", "W")) {
-      decimal_value <- -abs(decimal_value)
-    }
-    
-    return(decimal_value)
+  # Clean string
+  coord_clean <- stringr::str_trim(coord)
+  
+  # Extract hemisphere
+  hemisphere <- ""
+  if (stringr::str_detect(coord_clean, "[NSEW]")) {
+    hemisphere <- stringr::str_extract(coord_clean, "[NSEW]")
+    coord_clean <- stringr::str_remove(coord_clean, "[NSEW]")
+    coord_clean <- stringr::str_trim(coord_clean)
+  }
+  
+  # Auto-detect format
+  if (format == "auto") {
+    format <- .detect_coord_format(coord_clean)
+  }
+  
+  # Parse based on format
+  decimal_value <- tryCatch({
+    switch(format,
+           "dms" = .parse_dms(coord_clean),
+           "dm" = .parse_dm(coord_clean),
+           "decimal" = .parse_decimal(coord_clean),
+           NA_real_
+    )
+  }, error = function(e) {
+    warning("Failed to parse coordinate: ", coord, call. = FALSE)
+    NA_real_
   })
   
-  # Return as numeric vector
-  as.numeric(results)
+  # Apply hemisphere correction
+  if (!is.na(decimal_value) && hemisphere %in% c("S", "W")) {
+    decimal_value <- -abs(decimal_value)
+  }
+  
+  decimal_value
+}
+
+#' Detect coordinate format
+#' @keywords internal
+#' @noRd
+.detect_coord_format <- function(coord_clean) {
+  
+  # Check for degree/minute/second symbols
+  has_deg <- stringr::str_detect(coord_clean, "\u00B0|\u00B0")  # degree symbol
+  has_min <- stringr::str_detect(coord_clean, "'")         # minute symbol
+  has_sec <- stringr::str_detect(coord_clean, '"')         # second symbol
+  
+  if (has_deg && has_min && has_sec) {
+    return("dms")
+  } else if (has_deg && has_min) {
+    return("dm")
+  } else {
+    return("decimal")
+  }
+}
+
+#' Parse DMS (Degrees Minutes Seconds) format
+#' @keywords internal
+#' @noRd
+.parse_dms <- function(coord_clean) {
+  
+  # Extract all numeric parts
+  parts <- stringr::str_extract_all(coord_clean, "[0-9]+\\.?[0-9]*")[[1]]
+  
+  if (length(parts) < 3) {
+    return(NA_real_)
+  }
+  
+  degrees <- as.numeric(parts[1])
+  minutes <- as.numeric(parts[2])
+  seconds <- as.numeric(parts[3])
+  
+  degrees + minutes/60 + seconds/3600
+}
+
+#' Parse DM (Degrees Decimal Minutes) format
+#' @keywords internal
+#' @noRd
+.parse_dm <- function(coord_clean) {
+  
+  # Extract all numeric parts
+  parts <- stringr::str_extract_all(coord_clean, "[0-9]+\\.?[0-9]*")[[1]]
+  
+  if (length(parts) < 2) {
+    return(NA_real_)
+  }
+  
+  degrees <- as.numeric(parts[1])
+  minutes <- as.numeric(parts[2])
+  
+  degrees + minutes/60
+}
+
+#' Parse decimal format
+#' @keywords internal
+#' @noRd
+.parse_decimal <- function(coord_clean) {
+  
+  # Extract numeric value (including negative sign)
+  numeric_part <- stringr::str_extract(coord_clean, "-?[0-9]+\\.?[0-9]*")
+  
+  if (is.na(numeric_part)) {
+    return(NA_real_)
+  }
+  
+  as.numeric(numeric_part)
 }
 
 #' Batch convert coordinates from data frame
 #'
-#' Convenience function to convert multiple coordinate columns from character to decimal.
+#' Convenience function to convert multiple coordinate columns from
+#' character format to decimal degrees.
 #'
 #' @param df Data frame containing coordinate columns.
 #' @param lat_col Name of latitude column.
 #' @param lon_col Name of longitude column.
-#' @param format Expected coordinate format.
-#' @param new_lat_col Name for new decimal latitude column.
-#' @param new_lon_col Name for new decimal longitude column.
-#' @param remove_original Should original columns be removed?
+#' @param format Expected coordinate format (default: "auto").
+#' @param new_lat_col Name for new decimal latitude column (default: "latitude").
+#' @param new_lon_col Name for new decimal longitude column (default: "longitude").
+#' @param remove_original Remove original columns? (default: FALSE)
 #'
-#' @return Data frame with decimal coordinate columns.
+#' @return Data frame with decimal coordinate columns added.
 #'
 #' @examples
-#' # Sample data with character coordinates
-#' coord_data <- data.frame(
+#' # Sample data with DMS coordinates
+#' cities <- data.frame(
 #'   place = c("Paris", "London"),
 #'   lat_dms = c("48°51'29.5\"N", "51°30'26.5\"N"),
 #'   lon_dms = c("2°21'7.9\"E", "0°7'39.9\"W")
 #' )
 #' 
 #' # Convert to decimal
-#' decimal_coords <- euiss_coords_convert_df(
-#'   coord_data, 
-#'   lat_col = "lat_dms", 
+#' cities_decimal <- euiss_coords_convert_df(
+#'   cities,
+#'   lat_col = "lat_dms",
 #'   lon_col = "lon_dms"
 #' )
 #'
 #' @export
 euiss_coords_convert_df <- function(df,
-                                   lat_col,
-                                   lon_col,
-                                   format = "auto",
-                                   new_lat_col = "latitude",
-                                   new_lon_col = "longitude",
-                                   remove_original = FALSE) {
+                                    lat_col,
+                                    lon_col,
+                                    format = "auto",
+                                    new_lat_col = "latitude",
+                                    new_lon_col = "longitude",
+                                    remove_original = FALSE) {
   
   # Input validation
   if (!is.data.frame(df)) {
-    stop("`df` must be a data frame")
+    stop("`df` must be a data frame", call. = FALSE)
   }
   
   if (!lat_col %in% names(df)) {
-    stop("Latitude column '", lat_col, "' not found in data frame")
+    stop("Latitude column '", lat_col, "' not found in data frame", call. = FALSE)
   }
   
   if (!lon_col %in% names(df)) {
-    stop("Longitude column '", lon_col, "' not found in data frame")
+    stop("Longitude column '", lon_col, "' not found in data frame", call. = FALSE)
   }
   
   # Convert coordinates
@@ -430,17 +534,21 @@ euiss_coords_convert_df <- function(df,
   }
   
   # Report conversion results
-  successful_lat <- sum(!is.na(df[[new_lat_col]]))
-  successful_lon <- sum(!is.na(df[[new_lon_col]]))
-  total_rows <- nrow(df)
+  n_total <- nrow(df)
+  n_lat_success <- sum(!is.na(df[[new_lat_col]]))
+  n_lon_success <- sum(!is.na(df[[new_lon_col]]))
   
   message("Coordinate conversion completed:")
-  message("  Latitude: ", successful_lat, "/", total_rows, " successful")
-  message("  Longitude: ", successful_lon, "/", total_rows, " successful")
+  message("  Latitude:  ", n_lat_success, "/", n_total, " successful")
+  message("  Longitude: ", n_lon_success, "/", n_total, " successful")
   
-  if (successful_lat < total_rows || successful_lon < total_rows) {
-    warning("Some coordinates could not be converted. Check input format and data quality.")
+  if (n_lat_success < n_total || n_lon_success < n_total) {
+    warning(
+      "Some coordinates could not be converted. ",
+      "Check input format and data quality.",
+      call. = FALSE
+    )
   }
   
-  return(df)
+  df
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/raster-tools.R
 \name{euiss_crop_raster}
 \alias{euiss_crop_raster}
-\title{Crop and project a raster to match spatial extent and CRS}
+\title{Crop and project raster to match spatial extent and CRS}
 \usage{
 euiss_crop_raster(
   raster,
@@ -17,52 +17,52 @@ euiss_crop_raster(
 )
 }
 \arguments{
-\item{raster}{A SpatRaster object to be cropped and projected.}
+\item{raster}{SpatRaster object to crop and project.}
 
-\item{crop_extent}{Extent to crop to. Can be SpatExtent, sf object, or bbox.}
+\item{crop_extent}{Extent to crop to (SpatExtent, sf object, or bbox).}
 
-\item{crs}{Target coordinate reference system for projection.}
+\item{crs}{Target coordinate reference system.}
 
-\item{buffer}{Buffer distance around crop extent (in units of crop_extent's CRS).}
+\item{buffer}{Buffer distance around crop extent (in extent's CRS units).}
 
-\item{aggregate_fact}{Aggregation factor for downsampling (for performance).}
+\item{aggregate_fact}{Aggregation factor for downsampling (default: 1).}
 
-\item{to_dataframe}{Logical. Convert result to data frame?}
+\item{to_dataframe}{Convert result to data frame? (default: FALSE)}
 
-\item{normalize}{Logical. Normalize values to 0-1 range?}
+\item{normalize}{Normalize values to 0-1 range? (default: FALSE)}
 
-\item{column_name}{Name for raster values column in data frame output.}
+\item{column_name}{Name for raster values column in df output (default: "value").}
 
 \item{...}{Additional arguments passed to terra functions.}
 }
 \value{
-Either a SpatRaster object or a tibble/data frame with raster data.
+SpatRaster object or data frame with raster data.
 }
 \description{
-This function crops a raster to a specified extent, projects it to a new
-coordinate reference system, and optionally converts it to a data frame.
+Crops raster to specified extent, projects to new CRS, and optionally
+converts to data frame.
 }
 \details{
-The function performs the following steps:
+Processing steps:
 \enumerate{
-  \item Applies buffer to crop extent if specified
-  \item Crops raster to the (buffered) extent
-  \item Aggregates raster if aggregation factor > 1
-  \item Projects to target CRS
-  \item Optionally normalizes values
-  \item Optionally converts to data frame format
+  \item Apply buffer to crop extent (if specified)
+  \item Crop raster to (buffered) extent
+  \item Aggregate if factor > 1
+  \item Project to target CRS
+  \item Optionally normalize values
+  \item Optionally convert to data frame
 }
 }
 \examples{
 \dontrun{
-# Load sample data
+# Load data
 raster <- euiss_load_raster("elevation.tif")
 countries <- euiss_gisco(res = "20")
 albania <- countries[countries$NAME_ENGL == "Albania", ]
 
 # Crop and project
-albania_elevation <- euiss_crop_raster(
-  raster, 
+albania_elev <- euiss_crop_raster(
+  raster,
   crop_extent = albania,
   crs = "+proj=laea +lat_0=41 +lon_0=20",
   buffer = 10000

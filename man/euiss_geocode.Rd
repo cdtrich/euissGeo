@@ -17,40 +17,41 @@ euiss_geocode(
 )
 }
 \arguments{
-\item{df}{A data frame containing location information.}
+\item{df}{Data frame containing location information.}
 
-\item{loc}{The name of the location column in the data frame.}
+\item{loc}{Name of the location column in the data frame.}
 
-\item{sf}{Logical. Should the output be converted to an sf object? Default TRUE.}
+\item{sf}{Convert output to sf object? (default: TRUE)}
 
-\item{country_bias}{Optional country code to bias geocoding results (e.g., "US", "DE").}
+\item{country_bias}{Optional country code to bias results (e.g., "US", "DE").}
 
-\item{timeout}{Timeout for individual geocoding requests in seconds.}
+\item{timeout}{Timeout for individual requests in seconds (default: 10).}
 
-\item{max_retries}{Number of retries for failed geocoding requests.}
+\item{max_retries}{Number of retries for failed requests (default: 3).}
 
-\item{delay}{Delay between requests in seconds (to be respectful to the service).}
+\item{delay}{Delay between requests in seconds (default: 0.5).}
 
-\item{cache_results}{Logical. Should results be cached for repeated requests?}
+\item{cache_results}{Cache results for repeated requests? (default: TRUE)}
 
-\item{verbose}{Logical. Print progress and results? Default FALSE.}
+\item{verbose}{Print progress and results? (default: FALSE)}
 }
 \value{
-If sf=TRUE, returns an sf object with point geometries. Otherwise returns
-        a data frame with latitude and longitude columns.
+If sf=TRUE, returns sf object with point geometries. 
+        Otherwise returns data frame with latitude/longitude columns.
 }
 \description{
-This function takes a data frame with location names and geocodes them using
-OpenStreetMap Nominatim service via the tmaptools package. It handles batch
-geocoding with error handling and optional conversion to sf objects.
+Takes a data frame with location names and geocodes them using
+OpenStreetMap Nominatim service via tmaptools. Handles batch geocoding
+with error handling and optional conversion to sf objects.
 }
 \details{
-This function geocodes locations using the Nominatim service from OpenStreetMap.
-It includes several enhancements:
+Geocodes locations using Nominatim service from OpenStreetMap.
+
+Features:
 \itemize{
   \item Automatic retry for failed requests
   \item Rate limiting to respect service limits
-  \item Optional country biasing for better accuracy
+  \item Optional country biasing for accuracy
   \item Caching to avoid repeated requests
   \item Progress reporting for large datasets
 }
@@ -71,13 +72,13 @@ eu_cities <- data.frame(
 )
 
 geocoded_eu <- euiss_geocode(
-  eu_cities, 
-  loc = "city", 
+  eu_cities,
+  loc = "city",
   country_bias = "DE",
   verbose = TRUE
 )
 
-# Return as regular data frame
+# Return as data frame
 geocoded_df <- euiss_geocode(locations, loc = "city", sf = FALSE)
 }
 

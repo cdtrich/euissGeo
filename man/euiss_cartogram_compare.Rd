@@ -15,26 +15,26 @@ euiss_cartogram_compare(
 )
 }
 \arguments{
-\item{sf_data}{A Simple Features (sf) object.}
+\item{sf_data}{Simple Features (sf) object.}
 
-\item{weight}{The weight variable name (unquoted).}
+\item{weight}{Weight variable name (unquoted).}
 
-\item{types}{Vector of cartogram types to create.}
+\item{types}{Vector of cartogram types to create (default: c("cont", "dorling")).}
 
-\item{k_values}{Vector of k values to test (for applicable methods).}
+\item{k_values}{Vector of k values to test (default: c(0.05, 0.1, 0.2)).}
 
-\item{save_results}{Logical. Should results be saved to files?}
+\item{save_results}{Save results to files? (default: FALSE)}
 
-\item{output_dir}{Directory to save results if save_results=TRUE.}
+\item{output_dir}{Directory for saved results (default: "cartograms").}
 
-\item{verbose}{Logical. Print progress information?}
+\item{verbose}{Print progress? (default: TRUE)}
 }
 \value{
-List of cartogram sf objects with descriptive names.
+Named list of cartogram sf objects.
 }
 \description{
-This function creates several cartogram variants using different methods
-and parameters, useful for exploring which approach works best for your data.
+Creates several cartogram variants using different methods and parameters.
+Useful for exploring which approach works best for your data.
 }
 \examples{
 \dontrun{
@@ -42,14 +42,10 @@ countries <- euiss_gisco(res = "20") \%>\% slice_head(n = 5)
 countries$pop <- runif(nrow(countries), 1e6, 1e8)
 
 cartograms <- euiss_cartogram_compare(
-  countries, 
+  countries,
   weight = pop,
   types = c("cont", "dorling")
 )
-
-# Access individual cartograms
-continuous_cartogram <- cartograms$cont_k005
-dorling_cartogram <- cartograms$dorling_k005
 }
 
 }

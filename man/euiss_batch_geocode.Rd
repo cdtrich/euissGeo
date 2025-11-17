@@ -7,7 +7,6 @@
 euiss_batch_geocode(
   locations,
   services = c("nominatim"),
-  api_keys = list(),
   prefer_accuracy = TRUE,
   verbose = FALSE
 )
@@ -15,33 +14,32 @@ euiss_batch_geocode(
 \arguments{
 \item{locations}{Character vector of location names to geocode.}
 
-\item{services}{Vector of services to try: "nominatim", "google", "bing".}
+\item{services}{Vector of services to try (default: "nominatim").}
 
-\item{api_keys}{Named list of API keys for commercial services.}
+\item{prefer_accuracy}{Prefer accurate but slower services first? (default: TRUE)}
 
-\item{prefer_accuracy}{Logical. Prefer more accurate but slower services first?}
-
-\item{verbose}{Logical. Print detailed progress?}
+\item{verbose}{Print detailed progress? (default: FALSE)}
 }
 \value{
 Data frame with geocoding results and service metadata.
 }
 \description{
-This function provides robust geocoding by trying multiple services
-in sequence for better success rates.
+Provides robust geocoding by trying multiple services in sequence
+for better success rates. Currently only Nominatim is implemented.
+}
+\details{
+Currently supports:
+\itemize{
+  \item \strong{nominatim}: OpenStreetMap Nominatim (free)
+}
+
+Future versions may add Google Maps, Bing, etc. with API keys.
 }
 \examples{
 \dontrun{
 # Basic multi-service geocoding
 locations <- c("Paris, France", "London, UK", "Berlin, Germany")
 results <- euiss_batch_geocode(locations)
-
-# With commercial services (requires API keys)
-results <- euiss_batch_geocode(
-  locations,
-  services = c("google", "nominatim"),
-  api_keys = list(google = "your_api_key")
-)
 }
 
 }

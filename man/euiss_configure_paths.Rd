@@ -14,17 +14,17 @@ euiss_configure_paths(
 )
 }
 \arguments{
-\item{data_path}{Optional custom base data path. If NULL, uses environment variables or defaults}
+\item{data_path}{Optional custom base data path. If NULL, uses environment variables or defaults.}
 
-\item{gisco_path}{Optional specific path for GISCO data}
+\item{gisco_path}{Optional specific path for GISCO data.}
 
-\item{ne_path}{Optional specific path for Natural Earth data}
+\item{ne_path}{Optional specific path for Natural Earth data.}
 
-\item{raster_path}{Optional specific path for raster data}
+\item{raster_path}{Optional specific path for raster data.}
 
-\item{create_missing}{Logical. Should missing directories be created? Default TRUE}
+\item{create_missing}{Create missing directories? (default: TRUE)}
 
-\item{verbose}{Logical. Print path information? Default FALSE}
+\item{verbose}{Print path information? (default: FALSE)}
 }
 \value{
 Named list with configured paths:
@@ -36,18 +36,17 @@ Named list with configured paths:
 }
 }
 \description{
-This function sets up and validates data paths for various geospatial data sources
-used by euissGeo functions. It provides intelligent fallbacks and cross-platform
-compatibility.
+Sets up and validates data paths for various geospatial data sources.
+Provides intelligent fallbacks and cross-platform compatibility.
 }
 \details{
-The function tries to locate data in the following order:
+Path resolution order:
 1. User-provided paths
-2. Environment variables (EUISS_DATA_PATH, EUISS_GISCO_PATH, etc.)
+2. Environment variables (EUISS_DATA_PATH, etc.)
 3. Common default locations
 4. Temporary directory as fallback
 
-Environment variables can be set in .Renviron:
+Set environment variables in .Renviron:
 \code{EUISS_DATA_PATH="/path/to/your/data"}
 }
 \examples{

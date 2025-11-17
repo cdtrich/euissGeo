@@ -2,56 +2,94 @@
 % Please edit documentation in R/basemaps.R
 \name{euiss_basemap}
 \alias{euiss_basemap}
-\title{Create EUISS-styled basemap with elevation, roads, and urban areas}
+\title{Create EUISS-styled basemap with selectable layers}
 \usage{
 euiss_basemap(
-  country = "Albania",
+  country = "Belgium",
   ras = "GRAY_HR_SR_OB_DR",
   data_path = NULL,
   db = "gisco",
   crs = "+proj=robin",
   buffer = 1e+05,
+  shaded_relief = FALSE,
+  boundaries = TRUE,
+  roads = FALSE,
+  urban_areas = TRUE,
+  urban_labels = TRUE,
+  lakes = FALSE,
+  rivers = FALSE,
+  admin_boundaries = FALSE,
+  admin_level = 1,
+  graticule = FALSE,
   col = NULL,
   show_progress = TRUE
 )
 }
 \arguments{
-\item{country}{Country name to focus the map on}
+\item{country}{Country name to focus the map on (default: "Belgium").}
 
-\item{ras}{Raster type. One of "GRAY_HR_SR_OB_DR", "GRAY_HR_SR_W", "Blue-Earth-Bathymetry"}
+\item{ras}{Raster type: "GRAY_HR_SR_OB_DR", "GRAY_HR_SR_W", "Blue-Earth-Bathymetry".}
 
-\item{data_path}{Base path for raster and vector data. If NULL, uses configured paths}
+\item{data_path}{Base path for raster and vector data. If NULL, uses configured paths.}
 
-\item{db}{Database source. Either "gisco" for European focus or "ne" for global}
+\item{db}{Database source: "gisco" (European) or "ne" (global).}
 
-\item{crs}{Coordinate reference system. Use "+proj=robin" for global, or "+proj=laea" for regional}
+\item{crs}{Coordinate reference system (default: "+proj=robin").}
 
-\item{buffer}{Buffer distance around country in meters. Default 100km}
+\item{buffer}{Buffer distanceeui around country in meters (default: 100000).}
 
-\item{col}{Named list of colors for map elements. If NULL, uses EUISS colors}
+\item{shaded_relief}{Include shaded relief raster? (default: FALSE)}
 
-\item{show_progress}{Logical. Show progress bar during processing?}
+\item{boundaries}{Show country boundaries? (default: TRUE)}
+
+\item{roads}{Show road network? (default: FALSE)}
+
+\item{urban_areas}{Show urban area polygons? (default: TRUE)}
+
+\item{urban_labels}{Show city name labels? (default: TRUE)}
+
+\item{lakes}{Show lakes? (default: FALSE)}
+
+\item{rivers}{Show rivers? (default: FALSE)}
+
+\item{admin_boundaries}{Show administrative boundaries (provinces/states)? (default: FALSE)}
+
+\item{admin_level}{GADM admin level for boundaries: 1 (provinces) or 2 (districts).}
+
+\item{graticule}{Show lat/lon grid? (default: FALSE)}
+
+\item{col}{Named list of colors for map elements. If NULL, uses EUISS colors.}
+
+\item{show_progress}{Show progress bar? (default: TRUE)}
 }
 \value{
-A ggplot2 object representing the styled basemap
+A ggplot2 object representing the styled basemap.
 }
 \description{
-This function creates a comprehensive basemap with raster elevation data,
-roads, urban areas, and country boundaries using EUISS visual identity.
-Supports both GISCO and Natural Earth data sources.
+Creates a comprehensive basemap with optional layers including elevation data,
+roads, urban areas, administrative boundaries, rivers, and labels using EUISS styling.
 }
 \examples{
 \dontrun{
-# Basic basemap for Albania
-map <- euiss_basemap("Albania")
+# Basic map - boundaries and urban areas only
+map <- euiss_basemap("Belgium")
 
-# Custom styling and projection
-map <- euiss_basemap(
-  country = "Kosovo",
-  ras = "GRAY_HR_SR_W", 
-  db = "ne",
-  crs = "+proj=laea +lat_0=42 +lon_0=20",
-  buffer = 50000
+# Everything enabled
+map_full <- euiss_basemap(
+  "Belgium",
+  shaded_relief = TRUE,
+  roads = TRUE,
+  lakes = TRUE,
+  rivers = TRUE,
+  admin_boundaries = TRUE,
+  graticule = TRUE
+)
+
+# Minimal - just boundaries
+map_minimal <- euiss_basemap(
+  "Belgium",
+  urban_areas = FALSE,
+  urban_labels = FALSE
 )
 }
 

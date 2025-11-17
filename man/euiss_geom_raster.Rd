@@ -2,7 +2,7 @@
 % Please edit documentation in R/raster-tools.R
 \name{euiss_geom_raster}
 \alias{euiss_geom_raster}
-\title{Create a geom_raster layer with EUISS styling}
+\title{Create styled geom_raster layer for ggplot2}
 \usage{
 euiss_geom_raster(
   data = NULL,
@@ -15,40 +15,41 @@ euiss_geom_raster(
 )
 }
 \arguments{
-\item{data}{Raster data in data frame format (with x, y, and value columns).}
+\item{data}{Raster data in data frame format (with x, y, value columns).}
 
 \item{mapping}{Aesthetic mappings for the raster.}
 
-\item{value_col}{Name of the column containing raster values.}
+\item{value_col}{Name of column containing raster values.}
 
-\item{alpha}{Transparency level for the raster layer.}
+\item{alpha}{Transparency level (default: 0.7).}
 
-\item{colors}{Color palette for raster values. If NULL, uses EUISS terrain colors.}
+\item{colors}{Color palette. If NULL, uses EUISS terrain colors.}
 
-\item{guide}{Guide type for the legend.}
+\item{guide}{Guide type for legend (default: "colourbar").}
 
 \item{...}{Additional arguments passed to geom_raster.}
 }
 \value{
-A ggplot2 geom_raster layer with styling.
+List of ggplot2 layers (geom_raster + scale_fill).
 }
 \description{
-This function creates a styled geom_raster layer optimized for elevation
-and terrain visualization with EUISS color schemes.
+Creates a styled geom_raster layer optimized for elevation and terrain
+visualization with EUISS color schemes.
 }
 \examples{
 \dontrun{
-# Load and prepare data
+# Prepare raster data
 raster_df <- euiss_crop_raster(
-  my_raster, 
+  my_raster,
   crop_extent = my_extent,
   crs = 3857,
   to_dataframe = TRUE
 )
 
 # Create map
+library(ggplot2)
 ggplot() +
-  euiss_geom_raster(data = raster_df, aes(x = x, y = y, fill = value)) +
+  euiss_geom_raster(raster_df, aes(x = x, y = y, fill = value)) +
   theme_void()
 }
 

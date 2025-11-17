@@ -2,56 +2,24 @@
 % Please edit documentation in R/geocoding.R
 \name{euiss_reverse_geocode}
 \alias{euiss_reverse_geocode}
-\title{Reverse geocode coordinates to location names}
+\title{Reverse geocoding (REMOVED - Not Implemented)}
 \usage{
-euiss_reverse_geocode(
-  df,
-  lat_col = "latitude",
-  lon_col = "longitude",
-  detail_level = "city",
-  language = "en",
-  timeout = 10,
-  verbose = FALSE
-)
+euiss_reverse_geocode(...)
 }
 \arguments{
-\item{df}{Data frame with coordinate columns.}
-
-\item{lat_col}{Name of the latitude column.}
-
-\item{lon_col}{Name of the longitude column.}
-
-\item{detail_level}{Level of detail for results. Options: "country", "city", "address".}
-
-\item{language}{Language code for results (e.g., "en", "fr", "de").}
-
-\item{timeout}{Timeout for requests in seconds.}
-
-\item{verbose}{Logical. Print progress information?}
+\item{...}{All parameters (ignored)}
 }
 \value{
-Data frame with added location information columns.
+Error message
 }
 \description{
-This function performs reverse geocoding - converting latitude/longitude coordinates
-back to human-readable location names using the Nominatim service.
+This function has been removed as it was not fully implemented.
 }
-\examples{
-\dontrun{
-# Coordinates data
-coords_data <- data.frame(
-  id = 1:3,
-  latitude = c(48.8566, 51.5074, 52.5200),
-  longitude = c(2.3522, -0.1278, 13.4050)
-)
-
-# Reverse geocode to get city names
-locations <- euiss_reverse_geocode(
-  coords_data, 
-  lat_col = "latitude", 
-  lon_col = "longitude",
-  detail_level = "city"
-)
+\details{
+For reverse geocoding functionality, consider using:
+\itemize{
+  \item \code{tmaptools::rev_geocode_OSM()}
+  \item \code{tidygeocoder::reverse_geocode()}
 }
-
 }
+\keyword{internal}

@@ -2,7 +2,7 @@
 % Please edit documentation in R/raster-tools.R
 \name{euiss_load_raster}
 \alias{euiss_load_raster}
-\title{Load a raster file with enhanced error handling}
+\title{Load raster file with enhanced error handling}
 \usage{
 euiss_load_raster(
   path,
@@ -13,36 +13,35 @@ euiss_load_raster(
 )
 }
 \arguments{
-\item{path}{Path to the raster file. Can be absolute or relative.}
+\item{path}{Path to raster file (absolute or relative).}
 
-\item{validate}{Logical. Should the raster be validated after loading?}
+\item{validate}{Validate raster after loading? (default: TRUE)}
 
-\item{info}{Logical. Print raster information after loading?}
+\item{info}{Print raster information? (default: FALSE)}
 
-\item{fallback_paths}{Vector of alternative paths to try if primary path fails.}
+\item{fallback_paths}{Alternative paths to try if primary fails.}
 
 \item{...}{Additional arguments passed to terra::rast().}
 }
 \value{
-A SpatRaster object from the terra package.
+SpatRaster object from terra package.
 }
 \description{
-This function loads raster files using the terra package with comprehensive
-error handling, validation, and optional processing steps.
+Loads raster files using terra package with comprehensive error handling,
+validation, and optional processing steps.
 }
 \details{
-This function enhances the basic terra::rast() functionality by:
+Enhancements over terra::rast():
 \itemize{
-  \item Providing intelligent path resolution with fallbacks
-  \item Validating file existence before attempting to load
-  \item Optional validation of the loaded raster
+  \item Intelligent path resolution with fallbacks
+  \item File existence validation before loading
+  \item Optional raster validation
   \item Informative error messages
-  \item Optional raster information display
 }
 }
 \examples{
 \dontrun{
-# Basic raster loading
+# Basic loading
 raster <- euiss_load_raster("elevation.tif")
 
 # With fallback paths

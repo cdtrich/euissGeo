@@ -9,7 +9,7 @@ euiss_set_data_path(data_path, permanent = FALSE)
 \arguments{
 \item{data_path}{Base data path}
 
-\item{permanent}{Logical. Should this be saved permanently? Requires .Renviron edit}
+\item{permanent}{Save to .Renviron file? (default: FALSE)}
 }
 \description{
 Helper function to set environment variables for persistent path configuration.

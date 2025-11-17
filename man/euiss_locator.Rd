@@ -2,43 +2,25 @@
 % Please edit documentation in R/geocoding.R
 \name{euiss_locator}
 \alias{euiss_locator}
-\title{Interactive location picker}
+\title{Interactive location picker (REMOVED - Not Implemented)}
 \usage{
-euiss_locator(
-  n_points = 1,
-  base_map = NULL,
-  title = "Click to select locations",
-  return_format = "sf"
-)
+euiss_locator(...)
 }
 \arguments{
-\item{n_points}{Number of points to select interactively.}
-
-\item{base_map}{Optional base map (sf object) to display for context.}
-
-\item{title}{Title for the interactive session.}
-
-\item{return_format}{Format for returned coordinates: "sf", "df", "coords".}
+\item{...}{All parameters (ignored)}
 }
 \value{
-Coordinates in the requested format.
+Error message
 }
 \description{
-This function provides an interactive way to select locations on a map
-and retrieve their coordinates. Useful for manual data entry or validation.
+This function has been removed as it was not fully implemented.
 }
 \details{
-This function opens an interactive map where users can click to select locations.
-Requires the mapview or leaflet package for interactive mapping.
+For interactive location selection, consider using:
+\itemize{
+  \item \code{mapview} package for interactive mapping
+  \item \code{leaflet} package with Shiny for point selection
+  \item \code{mapedit::editMap()} for interactive editing
 }
-\examples{
-\dontrun{
-# Interactive selection of 3 points
-selected_points <- euiss_locator(n_points = 3)
-
-# With base map context
-countries <- euiss_gisco(res = "20")
-points <- euiss_locator(n_points = 2, base_map = countries)
 }
-
-}
+\keyword{internal}

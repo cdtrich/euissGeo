@@ -5,53 +5,51 @@
 #' @name spatial-join
 NULL
 
-#' Left join a data frame with a Simple Features (sf) object using country codes
+#' Left join data frame with sf object using country codes
 #'
-#' This function performs a left join between a data frame and a Simple Features (sf) object
-#' based on country codes. It uses the 'countrycode' package to convert country names
-#' to ISO3 codes before joining, with special handling for Kosovo and other edge cases.
+#' Performs a left join between a data frame and an sf object based on country codes.
+#' Uses countrycode package to convert country names to ISO3 codes before joining,
+#' with special handling for Kosovo and other edge cases.
 #'
-#' @param df A data frame containing country information.
-#' @param sf A Simple Features (sf) object with country codes as one of the columns.
-#' @param country The name of the column in the data frame containing country names.
-#' @param by A character vector specifying the columns to join on, with format c("df_column" = "sf_column").
-#' @param country_format Format for country matching. Options: "auto", "iso3c", "iso2c", "country.name".
-#' @param handle_kosovo Logical. Should Kosovo be handled specially? Default TRUE.
-#' @param kosovo_code ISO3 code to use for Kosovo. Default "KOS".
-#' @param verbose Logical. Print information about country matching? Default FALSE.
-#' @param ... Additional arguments passed to 'left_join' function from 'dplyr'.
+#' @param df Data frame containing country information.
+#' @param sf Simple Features (sf) object with country codes.
+#' @param country Name of the column in df containing country names.
+#' @param by Join specification: c("df_column" = "sf_column").
+#' @param country_format Format for country matching: "auto", "iso3c", "iso2c", "country.name".
+#' @param handle_kosovo Handle Kosovo specially? (default: TRUE)
+#' @param kosovo_code ISO3 code for Kosovo (default: "KOS").
+#' @param verbose Print information about country matching? (default: FALSE)
+#' @param ... Additional arguments passed to dplyr::left_join().
 #'
-#' @return A data frame with the result of the left join operation.
+#' @return Data frame with result of left join operation.
 #'
 #' @details
-#' This function enhances standard spatial joins by automatically handling country name
-#' standardization. It converts various country name formats to ISO codes for reliable
-#' matching with spatial data.
+#' Enhances standard spatial joins by automatically handling country name standardization.
 #' 
-#' Special cases handled:
+#' Special cases:
 #' \itemize{
 #'   \item Kosovo (assigns custom ISO3 code)
 #'   \item Country name variations (uses countrycode package)
-#'   \item Missing country matches (reports unmatched countries)
+#'   \item Missing matches (reports unmatched countries)
 #' }
 #'
 #' @examples
 #' \dontrun{
-#' # Example data frame with country information
+#' # Example data
 #' df <- data.frame(
 #'   country = c("United States", "Canada", "Germany", "Kosovo"),
 #'   value = c(100, 200, 150, 75)
 #' )
 #' 
-#' # Load GISCO countries data
+#' # Load GISCO data
 #' countries_sf <- euiss_gisco(res = "20")
 #' 
 #' # Perform spatial join
 #' result <- euiss_left_join(df, countries_sf, country = "country")
 #' 
-#' # Custom join column names
+#' # Custom join columns
 #' result <- euiss_left_join(
-#'   df, countries_sf, 
+#'   df, countries_sf,
 #'   country = "country",
 #'   by = c("iso3c" = "ISO3_CODE")
 #' )
@@ -63,37 +61,44 @@ NULL
 #'
 #' @export
 euiss_left_join <- function(df,
-                           sf,
-                           country = "country",
-                           by = c("iso3c" = "ISO3_CODE"),
-                           country_format = "auto",
-                           handle_kosovo = TRUE,
-                           kosovo_code = "KOS",
-                           verbose = FALSE,
-                           ...) {
+                            sf,
+                            country = "country",
+                            by = c("iso3c" = "ISO3_CODE"),
+                            country_format = "auto",
+                            handle_kosovo = TRUE,
+                            kosovo_code = "KOS",
+                            verbose = FALSE,
+                            ...) {
   
   # Input validation
   if (!is.data.frame(df)) {
-    stop("`df` must be a data frame")
+    stop("`df` must be a data frame", call. = FALSE)
   }
   
   if (!inherits(sf, "sf")) {
-    stop("`sf` must be a Simple Features (sf) object")
+    stop("`sf` must be a Simple Features (sf) object", call. = FALSE)
   }
   
   if (!country %in% names(df)) {
-    stop("Column '", country, "' not found in df. Available columns: ", 
-         paste(names(df), collapse = ", "))
+    stop(
+      "Column '", country, "' not found in df.\n",
+      "Available columns: ", paste(names(df), collapse = ", "),
+      call. = FALSE
+    )
   }
   
   if (nrow(df) == 0) {
-    warning("Input data frame is empty")
+    warning("Input data frame is empty", call. = FALSE)
     return(df)
   }
   
-  # Check if countrycode package is available
+  # Check countrycode package
   if (!requireNamespace("countrycode", quietly = TRUE)) {
-    stop("countrycode package is required. Install with: install.packages('countrycode')")
+    stop(
+      "countrycode package required.\n",
+      "Install with: install.packages('countrycode')",
+      call. = FALSE
+    )
   }
   
   # Extract country names
@@ -104,122 +109,137 @@ euiss_left_join <- function(df,
     message("Processing ", length(unique_countries), " unique countries")
   }
   
-  # Auto-detect country format if needed
+  # Auto-detect country format
   if (country_format == "auto") {
-    # Sample some country names to detect format
-    sample_countries <- head(unique_countries, 5)
-    
-    # Check if they look like ISO codes
-    if (all(nchar(sample_countries) == 3) && all(grepl("^[A-Z]{3}$", sample_countries))) {
-      country_format <- "iso3c"
-    } else if (all(nchar(sample_countries) == 2) && all(grepl("^[A-Z]{2}$", sample_countries))) {
-      country_format <- "iso2c"
-    } else {
-      country_format <- "country.name"
-    }
+    country_format <- .detect_country_format(unique_countries)
     
     if (verbose) {
       message("Auto-detected country format: ", country_format)
     }
   }
   
-  # Convert countries to ISO3 codes
+  # Convert to ISO3 codes
   if (country_format == "iso3c") {
     # Already in ISO3 format
     iso3_codes <- country_names
   } else {
-    # Convert to ISO3
-    iso3_codes <- tryCatch({
-      countrycode::countrycode(
-        country_names,
-        origin = country_format,
-        destination = "iso3c",
-        warn = verbose
-      )
-    }, error = function(e) {
-      stop("Country code conversion failed: ", e$message, "\n",
-           "Check country_format parameter and country names in your data.")
-    })
-  }
-  
-  # Handle Kosovo specifically
-  if (handle_kosovo) {
-    kosovo_matches <- grepl("kosovo", country_names, ignore.case = TRUE)
-    if (any(kosovo_matches)) {
-      iso3_codes[kosovo_matches] <- kosovo_code
-      if (verbose) {
-        message("Assigned code '", kosovo_code, "' to ", sum(kosovo_matches), " Kosovo entries")
-      }
-    }
+    # Use consolidated standardization function
+    iso3_codes <- .standardize_country_codes(
+      country_names,
+      origin = country_format,
+      destination = "iso3c",
+      handle_kosovo = handle_kosovo,
+      warn = verbose
+    )
   }
   
   # Create working data frame with ISO codes
   df_with_iso <- df %>%
-    dplyr::mutate(iso3c = iso3_codes)
+    dplyr::mutate(.iso3c_temp = iso3_codes)
   
   # Check for unmatched countries
-  unmatched <- is.na(iso3_codes)
+  unmatched <- is.na(iso3_codes) & !is.na(country_names)
   if (any(unmatched)) {
     unmatched_countries <- unique(country_names[unmatched])
+    
     if (verbose) {
-      message("Warning: Could not match ", length(unmatched_countries), " countries:")
-      message("  ", paste(unmatched_countries, collapse = ", "))
+      message(
+        "Could not match ", length(unmatched_countries), " countries:\n",
+        "  ", paste(unmatched_countries, collapse = ", ")
+      )
     } else {
-      warning("Could not match ", length(unmatched_countries), " countries. Use verbose=TRUE for details.")
+      warning(
+        "Could not match ", length(unmatched_countries), " countries. ",
+        "Use verbose=TRUE for details.",
+        call. = FALSE
+      )
     }
   }
   
-  # Check join key exists in sf data
-  sf_join_col <- names(by)[1]  # Right side of join (sf column)
-  df_join_col <- by[1]         # Left side of join (df column)
+  # Validate join key exists in sf
+  sf_join_col <- names(by)
+  if (length(sf_join_col) == 0) {
+    sf_join_col <- by[1]
+  }
   
   if (!sf_join_col %in% names(sf)) {
-    stop("Join column '", sf_join_col, "' not found in sf object. Available columns: ",
-         paste(names(sf), collapse = ", "))
+    stop(
+      "Join column '", sf_join_col, "' not found in sf object.\n",
+      "Available columns: ", paste(names(sf), collapse = ", "),
+      call. = FALSE
+    )
   }
   
   # Perform the join
+  join_by <- setNames(".iso3c_temp", sf_join_col)
+  
   result <- tryCatch({
     df_with_iso %>%
-      dplyr::left_join(sf, by = by, ...)
+      dplyr::left_join(sf, by = join_by, ...) %>%
+      dplyr::select(-.data$.iso3c_temp)  # Clean up temp column
   }, error = function(e) {
-    stop("Join operation failed: ", e$message)
+    stop("Join operation failed: ", e$message, call. = FALSE)
   })
   
   # Report join results
   if (verbose) {
-    successful_joins <- sum(!is.na(result$geometry))
-    total_rows <- nrow(result)
-    message("Join completed: ", successful_joins, "/", total_rows, " rows matched with spatial data")
+    n_matched <- sum(!is.na(result$geometry))
+    n_total <- nrow(result)
+    message("Join completed: ", n_matched, "/", n_total, " rows matched")
     
-    if (successful_joins < total_rows) {
-      # Identify which countries didn't match
+    if (n_matched < n_total) {
       unjoined_countries <- result %>%
         dplyr::filter(is.na(.data$geometry)) %>%
         dplyr::pull(!!rlang::sym(country)) %>%
         unique()
-      message("Countries without spatial match: ", paste(unjoined_countries, collapse = ", "))
+      
+      message("Countries without spatial match:\n  ", 
+              paste(unjoined_countries, collapse = ", "))
     }
   }
   
-  return(result)
+  result
+}
+
+#' Detect country format from sample
+#' @keywords internal
+#' @noRd
+.detect_country_format <- function(countries) {
+  
+  # Sample some countries
+  sample_countries <- head(countries, 5)
+  
+  # Check if they look like ISO3 codes
+  if (all(nchar(sample_countries) == 3) && 
+      all(grepl("^[A-Z]{3}$", sample_countries))) {
+    return("iso3c")
+  }
+  
+  # Check if they look like ISO2 codes
+  if (all(nchar(sample_countries) == 2) && 
+      all(grepl("^[A-Z]{2}$", sample_countries))) {
+    return("iso2c")
+  }
+  
+  # Default to country names
+  "country.name"
 }
 
 #' Enhanced spatial join with multiple fallback strategies
 #'
-#' This function performs spatial joins with multiple fallback strategies for
-#' better matching success rates. It tries exact matches first, then fuzzy matching,
-#' and finally spatial intersection for point data.
+#' Performs spatial joins with multiple fallback strategies for better
+#' matching success rates. Tries exact matches, then code matching, then
+#' fuzzy matching, and optionally spatial intersection.
 #'
 #' @param df Data frame with country/location information.
 #' @param sf Spatial features object for joining.
 #' @param location_col Column name in df containing location information.
 #' @param sf_name_col Column name in sf containing names for matching.
 #' @param sf_code_col Column name in sf containing codes for matching.
-#' @param strategies Vector of strategies to try: "exact", "code", "fuzzy", "spatial".
-#' @param fuzzy_threshold Threshold for fuzzy string matching (0-1).
-#' @param coords_cols For spatial strategy: c("longitude", "latitude") column names in df.
-#' @param verbose Logical. Print detailed matching information?
+#' @param strategies Vector of strategies: "exact", "code", "fuzzy", "spatial".
+#' @param fuzzy_threshold Threshold for fuzzy string matching (0-1, default: 0.8).
+#' @param coords_cols For spatial strategy: c("longitude", "latitude") in df.
+#' @param verbose Print detailed matching information? (default: FALSE)
 #'
 #' @return Data frame with joined spatial information and matching metadata.
 #'
@@ -243,30 +263,29 @@ euiss_left_join <- function(df,
 #'
 #' @import dplyr
 #' @import sf
-#' @importFrom utils adist
 #'
 #' @export
 euiss_enhanced_join <- function(df,
-                               sf,
-                               location_col = "location",
-                               sf_name_col = "NAME_ENGL",
-                               sf_code_col = "ISO3_CODE",
-                               strategies = c("exact", "code", "fuzzy", "spatial"),
-                               fuzzy_threshold = 0.8,
-                               coords_cols = c("longitude", "latitude"),
-                               verbose = FALSE) {
+                                sf,
+                                location_col = "location",
+                                sf_name_col = "NAME_ENGL",
+                                sf_code_col = "ISO3_CODE",
+                                strategies = c("exact", "code", "fuzzy", "spatial"),
+                                fuzzy_threshold = 0.8,
+                                coords_cols = c("longitude", "latitude"),
+                                verbose = FALSE) {
   
   # Input validation
   if (!is.data.frame(df)) {
-    stop("`df` must be a data frame")
+    stop("`df` must be a data frame", call. = FALSE)
   }
   
   if (!inherits(sf, "sf")) {
-    stop("`sf` must be a Simple Features (sf) object")
+    stop("`sf` must be a Simple Features (sf) object", call. = FALSE)
   }
   
   if (!location_col %in% names(df)) {
-    stop("Column '", location_col, "' not found in df")
+    stop("Column '", location_col, "' not found in df", call. = FALSE)
   }
   
   # Initialize result with matching metadata
@@ -274,65 +293,51 @@ euiss_enhanced_join <- function(df,
     dplyr::mutate(
       .match_strategy = NA_character_,
       .match_confidence = NA_real_,
-      .original_location = .data[[location_col]]
+      .original_location = .data[[location_col]],
+      .row_id = dplyr::row_number()
     )
   
-  # Track unmatched rows
-  unmatched_rows <- seq_len(nrow(result))
+  # Track unmatched row IDs
+  unmatched_ids <- result$.row_id
   
+  # Try each strategy
   for (strategy in strategies) {
     
-    if (length(unmatched_rows) == 0) break  # All matched
+    if (length(unmatched_ids) == 0) break
     
     if (verbose) {
-      message("Trying strategy: ", strategy, " for ", length(unmatched_rows), " unmatched rows")
+      message("Strategy '", strategy, "': ", length(unmatched_ids), " unmatched rows")
     }
     
-    strategy_result <- NULL
+    # Get unmatched subset
+    unmatched_df <- result %>%
+      dplyr::filter(.data$.row_id %in% unmatched_ids)
     
-    if (strategy == "exact") {
-      # Exact name matching
-      strategy_result <- euiss_exact_match(
-        result[unmatched_rows, ], sf, location_col, sf_name_col
-      )
-      
-    } else if (strategy == "code") {
-      # ISO code matching via countrycode
-      strategy_result <- euiss_code_match(
-        result[unmatched_rows, ], sf, location_col, sf_code_col, verbose
-      )
-      
-    } else if (strategy == "fuzzy") {
-      # Fuzzy string matching
-      strategy_result <- euiss_fuzzy_match(
-        result[unmatched_rows, ], sf, location_col, sf_name_col, fuzzy_threshold
-      )
-      
-    } else if (strategy == "spatial") {
-      # Spatial intersection (for point data)
-      if (all(coords_cols %in% names(result))) {
-        strategy_result <- euiss_spatial_match(
-          result[unmatched_rows, ], sf, coords_cols
-        )
-      } else if (verbose) {
-        message("Skipping spatial strategy: coordinate columns not found")
-      }
-    }
+    # Apply strategy
+    strategy_result <- .apply_matching_strategy(
+      unmatched_df, sf, strategy, location_col, sf_name_col, 
+      sf_code_col, fuzzy_threshold, coords_cols, verbose
+    )
     
-    # Update result with successful matches
-    if (!is.null(strategy_result) && nrow(strategy_result) > 0) {
-      matched_indices <- which(!is.na(strategy_result$geometry))
+    # Update matched rows
+    if (!is.null(strategy_result)) {
+      matched_ids <- strategy_result %>%
+        dplyr::filter(!is.na(.data$geometry)) %>%
+        dplyr::pull(.data$.row_id)
       
-      if (length(matched_indices) > 0) {
-        # Update the main result
-        result_indices <- unmatched_rows[matched_indices]
-        result[result_indices, ] <- strategy_result[matched_indices, ]
+      if (length(matched_ids) > 0) {
+        # Update result with matched rows
+        result <- result %>%
+          dplyr::rows_update(
+            strategy_result %>% dplyr::filter(.data$.row_id %in% matched_ids),
+            by = ".row_id"
+          )
         
-        # Remove successfully matched rows from unmatched list
-        unmatched_rows <- unmatched_rows[-matched_indices]
+        # Remove from unmatched
+        unmatched_ids <- setdiff(unmatched_ids, matched_ids)
         
         if (verbose) {
-          message("  Successfully matched ", length(matched_indices), " rows")
+          message("  Matched ", length(matched_ids), " rows")
         }
       }
     }
@@ -340,182 +345,256 @@ euiss_enhanced_join <- function(df,
   
   # Final summary
   if (verbose) {
-    total_matched <- sum(!is.na(result$geometry))
-    total_rows <- nrow(result)
-    message("\nFinal results: ", total_matched, "/", total_rows, " rows matched")
+    n_matched <- sum(!is.na(result$geometry))
+    n_total <- nrow(result)
+    message("\nFinal: ", n_matched, "/", n_total, " rows matched")
     
     # Strategy breakdown
-    strategy_summary <- result %>%
-      dplyr::filter(!is.na(.data$.match_strategy)) %>%
-      dplyr::count(.data$.match_strategy, name = "count")
-    
-    if (nrow(strategy_summary) > 0) {
-      message("Strategy breakdown:")
+    if (n_matched > 0) {
+      strategy_summary <- result %>%
+        dplyr::filter(!is.na(.data$.match_strategy)) %>%
+        dplyr::count(.data$.match_strategy, name = "count")
+      
+      message("By strategy:")
       for (i in seq_len(nrow(strategy_summary))) {
-        message("  ", strategy_summary$.match_strategy[i], ": ", strategy_summary$count[i])
+        message("  ", strategy_summary$.match_strategy[i], ": ", 
+                strategy_summary$count[i])
       }
     }
   }
   
-  return(result)
+  # Remove internal row_id
+  result %>% dplyr::select(-.data$.row_id)
 }
 
-#' Exact name matching helper
+#' Apply a single matching strategy
 #' @keywords internal
-#' @export
-euiss_exact_match <- function(df, sf, location_col, sf_name_col) {
+#' @noRd
+.apply_matching_strategy <- function(df, sf, strategy, location_col, sf_name_col,
+                                     sf_code_col, fuzzy_threshold, coords_cols, verbose) {
+  
+  tryCatch({
+    switch(strategy,
+           "exact" = .match_exact(df, sf, location_col, sf_name_col),
+           "code" = .match_code(df, sf, location_col, sf_code_col, verbose),
+           "fuzzy" = .match_fuzzy_vectorized(df, sf, location_col, sf_name_col, fuzzy_threshold),
+           "spatial" = .match_spatial(df, sf, coords_cols, verbose),
+           NULL
+    )
+  }, error = function(e) {
+    if (verbose) {
+      message("  Strategy failed: ", e$message)
+    }
+    NULL
+  })
+}
+
+#' Exact name matching
+#' @keywords internal
+#' @noRd
+.match_exact <- function(df, sf, location_col, sf_name_col) {
   
   join_by <- setNames(sf_name_col, location_col)
   
-  result <- df %>%
+  df %>%
     dplyr::left_join(sf, by = join_by, suffix = c("", ".sf")) %>%
     dplyr::mutate(
-      .match_strategy = ifelse(!is.na(.data$geometry), "exact", .data$.match_strategy),
-      .match_confidence = ifelse(!is.na(.data$geometry), 1.0, .data$.match_confidence)
+      .match_strategy = dplyr::if_else(
+        !is.na(.data$geometry) & is.na(.data$.match_strategy),
+        "exact",
+        .data$.match_strategy
+      ),
+      .match_confidence = dplyr::if_else(
+        !is.na(.data$geometry) & is.na(.data$.match_confidence),
+        1.0,
+        .data$.match_confidence
+      )
     )
-  
-  return(result)
 }
 
-#' Country code matching helper  
+#' Country code matching
 #' @keywords internal
-#' @export
-euiss_code_match <- function(df, sf, location_col, sf_code_col, verbose) {
+#' @noRd
+.match_code <- function(df, sf, location_col, sf_code_col, verbose) {
   
   if (!requireNamespace("countrycode", quietly = TRUE)) {
-    if (verbose) message("  countrycode package not available, skipping code matching")
+    if (verbose) message("  countrycode package not available")
     return(df)
   }
   
-  # Convert location names to ISO3 codes
-  iso3_codes <- tryCatch({
-    countrycode::countrycode(
-      df[[location_col]],
-      origin = "country.name",
-      destination = "iso3c",
-      warn = FALSE
-    )
-  }, error = function(e) {
-    if (verbose) message("  Country code conversion failed: ", e$message)
-    return(rep(NA, nrow(df)))
-  })
-  
-  # Handle Kosovo
-  kosovo_matches <- grepl("kosovo", df[[location_col]], ignore.case = TRUE)
-  iso3_codes[kosovo_matches] <- "KOS"
+  # Convert location names to ISO3 codes using utility function
+  iso3_codes <- .standardize_country_codes(
+    df[[location_col]],
+    origin = "country.name",
+    destination = "iso3c",
+    handle_kosovo = TRUE,
+    warn = FALSE
+  )
   
   df_with_codes <- df %>%
     dplyr::mutate(.temp_iso3 = iso3_codes)
   
   join_by <- setNames(sf_code_col, ".temp_iso3")
   
-  result <- df_with_codes %>%
+  df_with_codes %>%
     dplyr::left_join(sf, by = join_by, suffix = c("", ".sf")) %>%
     dplyr::select(-.data$.temp_iso3) %>%
     dplyr::mutate(
-      .match_strategy = ifelse(!is.na(.data$geometry) & is.na(.data$.match_strategy), 
-                              "code", .data$.match_strategy),
-      .match_confidence = ifelse(!is.na(.data$geometry) & is.na(.data$.match_confidence), 
-                                0.9, .data$.match_confidence)
+      .match_strategy = dplyr::if_else(
+        !is.na(.data$geometry) & is.na(.data$.match_strategy),
+        "code",
+        .data$.match_strategy
+      ),
+      .match_confidence = dplyr::if_else(
+        !is.na(.data$geometry) & is.na(.data$.match_confidence),
+        0.9,
+        .data$.match_confidence
+      )
     )
-  
-  return(result)
 }
 
-#' Fuzzy string matching helper
-#' @keywords internal  
-#' @export
-euiss_fuzzy_match <- function(df, sf, location_col, sf_name_col, threshold) {
+#' Vectorized fuzzy string matching
+#' @keywords internal
+#' @noRd
+.match_fuzzy_vectorized <- function(df, sf, location_col, sf_name_col, threshold) {
   
-  # For unmatched rows, try fuzzy matching
-  unmatched_df <- df %>%
+  # Get unmatched locations
+  unmatched <- df %>%
     dplyr::filter(is.na(.data$geometry) | is.na(.data$.match_strategy))
   
-  if (nrow(unmatched_df) == 0) return(df)
+  if (nrow(unmatched) == 0) return(df)
+  
+  # Get unique locations to match
+  locations_to_match <- unique(unmatched[[location_col]])
+  locations_to_match <- locations_to_match[!is.na(locations_to_match) & locations_to_match != ""]
+  
+  if (length(locations_to_match) == 0) return(df)
   
   sf_names <- sf[[sf_name_col]]
   
-  for (i in seq_len(nrow(unmatched_df))) {
-    location <- unmatched_df[[location_col]][i]
+  # Calculate similarity matrix (vectorized)
+  dist_matrix <- utils::adist(locations_to_match, sf_names, ignore.case = TRUE)
+  
+  # Calculate max lengths for normalization
+  len_matrix <- outer(
+    nchar(locations_to_match),
+    nchar(sf_names),
+    FUN = pmax
+  )
+  
+  # Similarity scores
+  similarity_matrix <- 1 - (dist_matrix / len_matrix)
+  
+  # Find best matches for each location
+  best_match_idx <- apply(similarity_matrix, 1, which.max)
+  best_similarity <- apply(similarity_matrix, 1, max)
+  
+  # Create lookup table for good matches
+  match_lookup <- data.frame(
+    location = locations_to_match,
+    best_match_idx = best_match_idx,
+    similarity = best_similarity,
+    stringsAsFactors = FALSE
+  ) %>%
+    dplyr::filter(.data$similarity >= threshold)
+  
+  if (nrow(match_lookup) == 0) return(df)
+  
+  # Join matched sf features
+  for (i in seq_len(nrow(match_lookup))) {
+    loc <- match_lookup$location[i]
+    sf_idx <- match_lookup$best_match_idx[i]
+    conf <- match_lookup$similarity[i]
     
-    if (is.na(location) || location == "") next
+    matched_sf <- sf[sf_idx, ]
     
-    # Calculate string distances
-    distances <- utils::adist(location, sf_names, ignore.case = TRUE)[1, ]
-    max_len <- pmax(nchar(location), nchar(sf_names))
-    similarities <- 1 - (distances / max_len)
-    
-    best_match_idx <- which.max(similarities)
-    best_similarity <- similarities[best_match_idx]
-    
-    if (best_similarity >= threshold) {
-      # Found a good fuzzy match
-      matched_row <- sf[best_match_idx, ]
-      
-      # Update the result
-      row_idx <- which(df[[location_col]] == location & 
-                      (is.na(df$.match_strategy) | is.na(df$geometry)))[1]
-      
-      if (!is.na(row_idx)) {
-        # Copy geometry and other sf columns
-        for (col in names(matched_row)) {
-          if (col != "geometry") {
-            df[row_idx, col] <- matched_row[[col]]
-          }
-        }
-        df[row_idx, "geometry"] <- matched_row$geometry
-        df[row_idx, ".match_strategy"] <- "fuzzy"
-        df[row_idx, ".match_confidence"] <- round(best_similarity, 3)
-      }
-    }
+    # Update df for this location
+    df <- df %>%
+      dplyr::rows_update(
+        df %>%
+          dplyr::filter(.data[[location_col]] == loc, 
+                        is.na(.data$.match_strategy)) %>%
+          dplyr::select(-.data$geometry) %>%
+          dplyr::bind_cols(
+            sf::st_drop_geometry(matched_sf)
+          ) %>%
+          dplyr::mutate(
+            geometry = matched_sf$geometry,
+            .match_strategy = "fuzzy",
+            .match_confidence = round(conf, 3)
+          ),
+        by = ".row_id",
+        unmatched = "ignore"
+      )
   }
   
-  return(df)
+  df
 }
 
-#' Spatial intersection matching helper
+#' Spatial intersection matching
 #' @keywords internal
-#' @export
-euiss_spatial_match <- function(df, sf, coords_cols) {
+#' @noRd
+.match_spatial <- function(df, sf, coords_cols, verbose) {
   
-  # Convert coordinates to sf points
+  # Check if coordinate columns exist
+  if (!all(coords_cols %in% names(df))) {
+    if (verbose) {
+      message("  Coordinate columns not found: ", paste(coords_cols, collapse = ", "))
+    }
+    return(df)
+  }
+  
+  # Filter rows with valid coordinates
   coord_data <- df %>%
-    dplyr::filter(!is.na(.data[[coords_cols[1]]]), !is.na(.data[[coords_cols[2]]])) %>%
-    sf::st_as_sf(coords = coords_cols, crs = 4326)
+    dplyr::filter(
+      !is.na(.data[[coords_cols[1]]]),
+      !is.na(.data[[coords_cols[2]]]),
+      is.na(.data$.match_strategy)
+    )
   
   if (nrow(coord_data) == 0) return(df)
   
-  # Transform to same CRS as sf object
-  sf_crs <- sf::st_crs(sf)
-  coord_data_transformed <- sf::st_transform(coord_data, sf_crs)
+  # Convert to sf points
+  coord_sf <- tryCatch({
+    coord_data %>%
+      sf::st_as_sf(coords = coords_cols, crs = 4326) %>%
+      sf::st_transform(sf::st_crs(sf))
+  }, error = function(e) {
+    if (verbose) message("  Failed to create point geometries: ", e$message)
+    return(NULL)
+  })
+  
+  if (is.null(coord_sf)) return(df)
   
   # Spatial intersection
-  intersections <- sf::st_intersects(coord_data_transformed, sf)
+  intersections <- sf::st_intersects(coord_sf, sf)
   
+  # Update df with matches
   for (i in seq_along(intersections)) {
     if (length(intersections[[i]]) > 0) {
-      # Take first intersection
-      matched_idx <- intersections[[i]][1]
-      matched_row <- sf[matched_idx, ]
+      sf_idx <- intersections[[i]][1]  # Take first match
+      row_id <- coord_sf$.row_id[i]
       
-      # Find corresponding row in original data
-      orig_row_idx <- which(df[[coords_cols[1]]] == coord_data[[coords_cols[1]]][i] &
-                           df[[coords_cols[2]]] == coord_data[[coords_cols[2]]][i] &
-                           (is.na(df$.match_strategy) | is.na(df$geometry)))[1]
+      matched_sf <- sf[sf_idx, ]
       
-      if (!is.na(orig_row_idx)) {
-        # Update with spatial match
-        for (col in names(matched_row)) {
-          if (col != "geometry") {
-            df[orig_row_idx, col] <- matched_row[[col]]
-          }
-        }
-        df[orig_row_idx, "geometry"] <- matched_row$geometry  
-        df[orig_row_idx, ".match_strategy"] <- "spatial"
-        df[orig_row_idx, ".match_confidence"] <- 1.0
-      }
+      df <- df %>%
+        dplyr::rows_update(
+          df %>%
+            dplyr::filter(.data$.row_id == row_id) %>%
+            dplyr::select(-.data$geometry) %>%
+            dplyr::bind_cols(
+              sf::st_drop_geometry(matched_sf)
+            ) %>%
+            dplyr::mutate(
+              geometry = matched_sf$geometry,
+              .match_strategy = "spatial",
+              .match_confidence = 1.0
+            ),
+          by = ".row_id",
+          unmatched = "ignore"
+        )
     }
   }
   
-  return(df)
+  df
 }

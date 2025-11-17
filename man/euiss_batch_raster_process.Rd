@@ -26,18 +26,18 @@ euiss_batch_raster_process(
 
 \item{aggregate_fact}{Aggregation factor for downsampling.}
 
-\item{file_suffix}{Suffix to add to output filenames.}
+\item{file_suffix}{Suffix to add to output filenames (default: "_processed").}
 
-\item{overwrite}{Logical. Overwrite existing output files?}
+\item{overwrite}{Overwrite existing output files? (default: FALSE)}
 
-\item{verbose}{Logical. Print progress information?}
+\item{verbose}{Print progress information? (default: TRUE)}
 }
 \value{
-Character vector of output file paths.
+Character vector of output file paths (successful only).
 }
 \description{
-This function processes multiple raster files using the same parameters,
-useful for preparing datasets with consistent processing.
+Processes multiple raster files using same parameters. Useful for preparing
+datasets with consistent processing.
 }
 \examples{
 \dontrun{

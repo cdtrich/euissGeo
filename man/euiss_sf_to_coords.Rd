@@ -7,8 +7,8 @@
 euiss_sf_to_coords(
   sf_data,
   format = "separate",
-  x_name = "x",
-  y_name = "y",
+  x_name = "longitude",
+  y_name = "latitude",
   coords_name = "coords",
   sep = ", ",
   digits = 6,
@@ -16,41 +16,41 @@ euiss_sf_to_coords(
 )
 }
 \arguments{
-\item{sf_data}{A Simple Features (sf) object with point geometries.}
+\item{sf_data}{Simple Features (sf) object with point geometries.}
 
-\item{format}{Output format. Either "separate" (x and y columns) or "combined" (single coords column).}
+\item{format}{Output format: "separate" (x and y columns) or "combined" (single column).}
 
-\item{x_name}{Name for the x coordinate column (longitude).}
+\item{x_name}{Name for x coordinate column (longitude) (default: "x").}
 
-\item{y_name}{Name for the y coordinate column (latitude).}
+\item{y_name}{Name for y coordinate column (latitude) (default: "y").}
 
-\item{coords_name}{Name for combined coordinates column.}
+\item{coords_name}{Name for combined coordinates column (default: "coords").}
 
-\item{sep}{Separator for combined coordinates (when format = "combined").}
+\item{sep}{Separator for combined coordinates (default: ", ").}
 
-\item{digits}{Number of decimal places for coordinates.}
+\item{digits}{Number of decimal places for coordinates (default: 6).}
 
-\item{drop_geometry}{Logical; should the geometry column be dropped?}
+\item{drop_geometry}{Drop geometry column from output? (default: TRUE)}
 }
 \value{
 Data frame with extracted coordinates.
 }
 \description{
-This function extracts coordinate values from an sf object and returns them
-as separate columns or as a combined coordinates column.
+Extracts coordinate values from sf object and returns them as separate
+columns or as a combined coordinates column.
 }
 \examples{
 # Create sample sf data
-data <- data.frame(
+cities <- data.frame(
   name = c("Paris", "London"),
   coords = c("48.8566, 2.3522", "51.5074, -0.1278")
 )
-sf_data <- euiss_coords_to_sf(data, coords = "coords")
+sf_cities <- euiss_coords_to_sf(cities, coords = "coords")
 
 # Extract as separate columns
-coords_separate <- euiss_sf_to_coords(sf_data, format = "separate")
+coords_separate <- euiss_sf_to_coords(sf_cities, format = "separate")
 
 # Extract as combined column
-coords_combined <- euiss_sf_to_coords(sf_data, format = "combined", sep = " | ")
+coords_combined <- euiss_sf_to_coords(sf_cities, format = "combined")
 
 }

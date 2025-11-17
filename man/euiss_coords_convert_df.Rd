@@ -21,32 +21,33 @@ euiss_coords_convert_df(
 
 \item{lon_col}{Name of longitude column.}
 
-\item{format}{Expected coordinate format.}
+\item{format}{Expected coordinate format (default: "auto").}
 
-\item{new_lat_col}{Name for new decimal latitude column.}
+\item{new_lat_col}{Name for new decimal latitude column (default: "latitude").}
 
-\item{new_lon_col}{Name for new decimal longitude column.}
+\item{new_lon_col}{Name for new decimal longitude column (default: "longitude").}
 
-\item{remove_original}{Should original columns be removed?}
+\item{remove_original}{Remove original columns? (default: FALSE)}
 }
 \value{
-Data frame with decimal coordinate columns.
+Data frame with decimal coordinate columns added.
 }
 \description{
-Convenience function to convert multiple coordinate columns from character to decimal.
+Convenience function to convert multiple coordinate columns from
+character format to decimal degrees.
 }
 \examples{
-# Sample data with character coordinates
-coord_data <- data.frame(
+# Sample data with DMS coordinates
+cities <- data.frame(
   place = c("Paris", "London"),
   lat_dms = c("48°51'29.5\"N", "51°30'26.5\"N"),
   lon_dms = c("2°21'7.9\"E", "0°7'39.9\"W")
 )
 
 # Convert to decimal
-decimal_coords <- euiss_coords_convert_df(
-  coord_data, 
-  lat_col = "lat_dms", 
+cities_decimal <- euiss_coords_convert_df(
+  cities,
+  lat_col = "lat_dms",
   lon_col = "lon_dms"
 )
 

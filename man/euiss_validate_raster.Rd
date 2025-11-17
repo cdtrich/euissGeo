@@ -13,22 +13,25 @@ euiss_validate_raster(
 )
 }
 \arguments{
-\item{raster}{A SpatRaster object to validate.}
+\item{raster}{SpatRaster object to validate.}
 
-\item{check_crs}{Logical. Check if CRS is defined?}
+\item{check_crs}{Check if CRS is defined? (default: TRUE)}
 
-\item{check_values}{Logical. Check for valid data values?}
+\item{check_values}{Check for valid data values? (default: TRUE)}
 
-\item{check_extent}{Logical. Check if extent is reasonable?}
+\item{check_extent}{Check if extent is reasonable? (default: TRUE)}
 
-\item{verbose}{Logical. Print detailed validation results?}
+\item{verbose}{Print detailed validation results? (default: FALSE)}
 }
 \value{
-List with validation results and diagnostic information.
+List with validation results:
+  \item{valid}{Logical indicating if raster passed validation}
+  \item{message}{Summary message}
+  \item{issues}{Character vector of critical issues}
+  \item{warnings}{Character vector of warnings}
 }
 \description{
-This function performs comprehensive validation of raster data to identify
-potential issues before processing.
+Performs comprehensive validation of raster data to identify potential issues.
 }
 \examples{
 \dontrun{

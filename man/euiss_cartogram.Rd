@@ -2,7 +2,7 @@
 % Please edit documentation in R/visualization.R
 \name{euiss_cartogram}
 \alias{euiss_cartogram}
-\title{Generate cartogram from sf object with data}
+\title{Generate cartogram from sf object}
 \usage{
 euiss_cartogram(
   sf_data,
@@ -17,74 +17,63 @@ euiss_cartogram(
 )
 }
 \arguments{
-\item{sf_data}{A Simple Features (sf) object with polygon geometries and associated data.}
+\item{sf_data}{Simple Features (sf) object with polygon geometries.}
 
-\item{weight}{The variable name for cartogram weights (unquoted).}
+\item{weight}{Variable name for cartogram weights (unquoted).}
 
-\item{type}{Type of cartogram. Options: "cont" (continuous), "ncont" (non-contiguous), "dorling".}
+\item{type}{Cartogram type: "cont" (continuous), "ncont" (non-contiguous), 
+or "dorling" (circles).}
 
-\item{k}{Smoothing parameter for continuous cartograms. Higher values = smoother.}
+\item{k}{Smoothing parameter for continuous cartograms (default: 0.05).}
 
-\item{crs}{Target coordinate reference system. If NULL, uses data's current CRS.}
+\item{crs}{Target coordinate reference system. If NULL, uses data's CRS.}
 
-\item{itermax}{Maximum iterations for cartogram algorithm.}
+\item{itermax}{Maximum iterations for cartogram algorithm (default: 15).}
 
-\item{prepare_data}{Logical. Should data be prepared/cleaned before cartogram creation?}
+\item{prepare_data}{Clean/prepare data before cartogram creation? (default: TRUE)}
 
-\item{min_weight}{Minimum weight threshold - polygons below this are excluded.}
+\item{min_weight}{Minimum weight threshold - polygons below excluded.}
 
-\item{verbose}{Logical. Print progress and diagnostic information?}
+\item{verbose}{Print progress and diagnostic information? (default: FALSE)}
 }
 \value{
-A Simple Features (sf) object representing the cartogram.
+Simple Features (sf) object representing the cartogram.
 }
 \description{
-This function creates cartograms where polygon sizes are distorted based on
-a weight variable. Uses the cartogram package to create area or distance cartograms.
+Creates cartograms where polygon sizes are distorted based on a weight variable.
+Uses the cartogram package to create area or distance cartograms.
 }
 \details{
 Cartogram types:
 \itemize{
   \item \strong{cont}: Continuous cartogram preserving topology
-  \item \strong{ncont}: Non-contiguous cartogram (shapes don't touch)
+  \item \strong{ncont}: Non-contiguous (shapes don't touch)
   \item \strong{dorling}: Dorling cartogram (circles proportional to weight)
 }
 
-The weight variable should be positive numeric values. Zero or negative values
-may cause issues with cartogram algorithms.
+Weight variable should be positive. Zero/negative values may cause errors.
 }
 \examples{
 \dontrun{
 # Load country data
 countries <- euiss_gisco(res = "20") \%>\%
-  slice_head(n = 10)  # Subset for faster processing
+  slice_head(n = 10)
 
-# Add sample population data
 countries$population <- runif(nrow(countries), 1e6, 1e8)
 
-# Create continuous cartogram
+# Continuous cartogram
 cartogram_cont <- euiss_cartogram(
-  countries, 
-  weight = population, 
+  countries,
+  weight = population,
   type = "cont"
 )
 
-# Create Dorling cartogram (circles)
+# Dorling cartogram (circles)
 cartogram_dorling <- euiss_cartogram(
   countries,
   weight = population,
   type = "dorling"
 )
-
-# Plot comparison
-library(ggplot2)
-original_plot <- ggplot(countries) + 
-  geom_sf(aes(fill = population)) + 
-  ggtitle("Original")
-
-cartogram_plot <- ggplot(cartogram_cont) + 
-  geom_sf(aes(fill = population)) +
-  ggtitle("Cartogram")
 }
 
 }

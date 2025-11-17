@@ -12,20 +12,20 @@ euiss_gisco_kosovo(
 )
 }
 \arguments{
-\item{res}{GISCO resolution to use}
+\item{res}{GISCO resolution to use (default: "10").}
 
-\item{year}{GISCO year to use}
+\item{year}{GISCO year to use (default: "2024").}
 
-\item{data_path}{GISCO data path}
+\item{data_path}{GISCO data path. If NULL, uses configured paths.}
 
-\item{save_file}{Optional filename to save the result}
+\item{save_file}{Optional filename to save result (as .rds).}
 }
 \value{
-sf object with Kosovo-compatible countries data
+sf object with Kosovo-compatible countries data.
 }
 \description{
-This function creates a version of GISCO countries data that includes Kosovo
-as a separate entity, extracted from Serbia's boundaries using Natural Earth data.
+Creates a version of GISCO countries data that includes Kosovo as a separate
+entity, extracted from Serbia's boundaries using Natural Earth data.
 }
 \examples{
 \dontrun{
@@ -34,7 +34,7 @@ countries_kosovo <- euiss_gisco_kosovo(res = "10")
 
 # Save for future use
 countries_kosovo <- euiss_gisco_kosovo(
-  res = "10", 
+  res = "10",
   save_file = "countries_2024_10m_kosovo.rds"
 )
 }

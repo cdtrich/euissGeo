@@ -4,9 +4,8 @@
 \name{euissGeo-package}
 \alias{euissGeo-package}
 \alias{euissGeo}
-\title{\code{euissGeo} package}
+\title{euissGeo: Enhanced Geospatial Analysis for EUISS}
 \description{
-Enhanced geospatial analysis package for the EU Institute for Security Studies.
 Provides comprehensive tools for spatial data processing, visualization, and analysis
 with seamless integration to the euissR styling package.
 }
@@ -21,38 +20,39 @@ The euissGeo package offers specialized functions for:
   \item Raster data processing and visualization
   \item Comprehensive basemap creation with multiple data sources
 }
+}
+\section{Key Features}{
 
-Key Features:
 \itemize{
   \item \strong{Data Integration}: Seamless access to GISCO and Natural Earth data
   \item \strong{Smart Geocoding}: Robust geocoding with fallback strategies
-  \item \strong{Flexible Visualization}: Create cartograms, spike maps, and styled basemaps
+  \item \strong{Flexible Visualization}: Cartograms, spike maps, and styled basemaps
   \item \strong{EUISS Integration}: Full compatibility with euissR styling
-  \item \strong{Error Resilience}: Comprehensive error handling and fallback mechanisms
-  \item \strong{Performance Optimized}: Efficient processing of large spatial datasets
+  \item \strong{Error Resilience}: Comprehensive error handling and fallbacks
+  \item \strong{Performance}: Efficient processing of large spatial datasets
 }
 }
+
 \section{Data Sources}{
 
-The package works with multiple geographic data sources:
 \itemize{
   \item \strong{GISCO}: Eurostat's geographic information system (European focus)
   \item \strong{Natural Earth}: Global geographic data at multiple scales
-  \item \strong{OpenStreetMap}: Geocoding services via Nominatim
-  \item \strong{Custom Rasters}: Support for elevation, terrain, and thematic rasters
+  \item \strong{OpenStreetMap}: Geocoding via Nominatim
+  \item \strong{Raster Data}: Elevation, terrain, and thematic rasters
 }
 }
 
 \section{Configuration}{
 
-Use \code{euiss_configure_paths()} to set up data directories and
-\code{euiss_check_setup()} to verify package configuration.
+Use \code{\link{euiss_configure_paths}} to set up data directories and
+\code{\link{euiss_check_setup}} to verify package configuration.
 }
 
 \section{Getting Started}{
 
 \preformatted{
-# Configure data paths
+# Check setup
 euiss_check_setup()
 
 # Load country data
@@ -62,8 +62,8 @@ countries <- euiss_gisco(res = "20")
 map <- euiss_basemap("France", db = "gisco")
 
 # Geocode locations
-locations <- data.frame(city = c("Paris", "Lyon"))
-geocoded <- euiss_geocode(locations, loc = "city")
+cities <- data.frame(city = c("Paris", "Lyon"))
+geocoded <- euiss_geocode(cities, loc = "city")
 }
 }
 
@@ -77,11 +77,13 @@ geocoded <- euiss_geocode(locations, loc = "city")
 \seealso{
 Useful links:
 \itemize{
-  \item \code{\link{euiss_gisco}} for loading European geographic data
-  \item \code{\link{euiss_basemap}} for creating comprehensive basemaps
-  \item \code{\link{euiss_geocode}} for geocoding addresses and places
-  \item \code{\link{euiss_spikemap}} for creating spike map visualizations
-  \item \code{\link{euiss_cartogram}} for creating cartograms
+  \item \code{\link{euiss_gisco}} - Load European geographic data
+  \item \code{\link{euiss_basemap}} - Create comprehensive basemaps
+  \item \code{\link{euiss_geocode}} - Geocode addresses and places
+  \item \code{\link{euiss_spikemap}} - Create spike map visualizations
+  \item \code{\link{euiss_cartogram}} - Create cartograms
+  \item \code{\link{euiss_left_join}} - Enhanced spatial joins
+  \item \code{\link{euiss_coords_to_sf}} - Convert coordinates to sf objects
 }
 }
 \author{

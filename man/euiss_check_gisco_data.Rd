@@ -9,24 +9,22 @@ euiss_check_gisco_data(data_path = NULL, detailed = FALSE)
 \arguments{
 \item{data_path}{GISCO data path. If NULL, uses configured paths.}
 
-\item{detailed}{Logical. Return detailed file information?}
+\item{detailed}{Return detailed file information? (default: FALSE)}
 }
 \value{
-If detailed=FALSE, returns character vector of filenames. 
-        If detailed=TRUE, returns data frame with parsed file information.
+If detailed=FALSE, character vector of filenames.
+        If detailed=TRUE, data frame with parsed file information.
 }
 \description{
-This function scans the GISCO data directory and reports available data files
-and their specifications.
+Scans GISCO data directory and reports available data files and specifications.
 }
 \examples{
 \dontrun{
-# Check what data is available
+# Check available data
 euiss_check_gisco_data()
 
 # Get detailed information
 available_data <- euiss_check_gisco_data(detailed = TRUE)
-print(available_data)
 }
 
 }

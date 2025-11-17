@@ -27,21 +27,21 @@ euiss_enhanced_join(
 
 \item{sf_code_col}{Column name in sf containing codes for matching.}
 
-\item{strategies}{Vector of strategies to try: "exact", "code", "fuzzy", "spatial".}
+\item{strategies}{Vector of strategies: "exact", "code", "fuzzy", "spatial".}
 
-\item{fuzzy_threshold}{Threshold for fuzzy string matching (0-1).}
+\item{fuzzy_threshold}{Threshold for fuzzy string matching (0-1, default: 0.8).}
 
-\item{coords_cols}{For spatial strategy: c("longitude", "latitude") column names in df.}
+\item{coords_cols}{For spatial strategy: c("longitude", "latitude") in df.}
 
-\item{verbose}{Logical. Print detailed matching information?}
+\item{verbose}{Print detailed matching information? (default: FALSE)}
 }
 \value{
 Data frame with joined spatial information and matching metadata.
 }
 \description{
-This function performs spatial joins with multiple fallback strategies for
-better matching success rates. It tries exact matches first, then fuzzy matching,
-and finally spatial intersection for point data.
+Performs spatial joins with multiple fallback strategies for better
+matching success rates. Tries exact matches, then code matching, then
+fuzzy matching, and optionally spatial intersection.
 }
 \examples{
 \dontrun{

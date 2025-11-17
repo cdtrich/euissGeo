@@ -12,28 +12,25 @@ Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.3
 Depends: 
-    R (>= 4.0.0),
-    euissR (>= 0.1.2)
+    R (>= 4.0.0)
 Imports:
     dplyr,
     sf,
     ggplot2,
+    euissR,
     terra,
     rnaturalearth,
-    giscoR,
     tmaptools,
+    geodata,
     countrycode,
     stringr,
     tidyr,
     progress,
-    purrr,
     tibble,
-    grDevices,
     utils,
     cartogram,
     magrittr,
-    rlang,
-    data.table
+    rlang
 Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3

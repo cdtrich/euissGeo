@@ -4,40 +4,45 @@
 \alias{euiss_coords_char2dec}
 \title{Convert character coordinates to decimal degrees}
 \usage{
-euiss_coords_char2dec(coord_string, format = "auto", hemisphere_column = NULL)
+euiss_coords_char2dec(coord_string, format = "auto")
 }
 \arguments{
-\item{coord_string}{Character string containing coordinate information.}
+\item{coord_string}{Character vector of coordinate strings.}
 
-\item{format}{Expected input format. Options: "auto", "dms", "dm", "decimal".}
-
-\item{hemisphere_column}{Optional column name containing hemisphere information (N/S/E/W).}
+\item{format}{Expected input format: "auto", "dms", "dm", or "decimal".}
 }
 \value{
-Numeric value in decimal degrees.
+Numeric vector in decimal degrees.
 }
 \description{
-This function converts coordinates from various character formats (DMS, DM, etc.)
-to decimal degrees. Supports multiple input formats commonly found in geographic data.
+Converts coordinates from various character formats (DMS, DM, decimal)
+to decimal degrees. Supports multiple common geographic coordinate formats.
 }
 \details{
 Supported input formats:
 \itemize{
-  \item DMS: "48°51'29.5\"N" or "48 51 29.5 N"
-  \item DM: "48°51.492'N" or "48 51.492 N" 
+  \item DMS (Degrees Minutes Seconds): "48°51'29.5\"N" or "48 51 29.5 N"
+  \item DM (Degrees Decimal Minutes): "48°51.492'N" or "48 51.492 N"
   \item Decimal: "48.8582" or "48.8582°N"
 }
+
+Hemisphere indicators (N/S/E/W) automatically determine sign.
+South and West are negative.
 }
 \examples{
 # DMS format
-euiss_coords_char2dec("48°51'29.5\"N")
-euiss_coords_char2dec("2°21'7.9\"E")
+euiss_coords_char2dec("48°51'29.5\"N")  # Returns 48.85819
+euiss_coords_char2dec("2°21'7.9\"E")    # Returns 2.35219
 
-# DM format  
-euiss_coords_char2dec("48°51.492'N")
+# DM format
+euiss_coords_char2dec("48°51.492'N")    # Returns 48.8582
 
 # Decimal format
-euiss_coords_char2dec("48.8582°N")
-euiss_coords_char2dec("-2.3522")
+euiss_coords_char2dec("48.8582°N")      # Returns 48.8582
+euiss_coords_char2dec("-2.3522")        # Returns -2.3522
+ 
+# Auto-detect format
+coords <- c("48°51'29.5\"N", "48°51.492'N", "48.8582")
+euiss_coords_char2dec(coords, format = "auto")
 
 }
