@@ -208,8 +208,8 @@ euiss_coords_to_sf <- function(df,
 #'
 #' @param sf_data Simple Features (sf) object with point geometries.
 #' @param format Output format: "separate" (x and y columns) or "combined" (single column).
-#' @param x_name Name for x coordinate column (longitude) (default: "x").
-#' @param y_name Name for y coordinate column (latitude) (default: "y").
+#' @param x_name Name for x coordinate column (longitude) (default: "lon").
+#' @param y_name Name for y coordinate column (latitude) (default: "lat").
 #' @param coords_name Name for combined coordinates column (default: "coords").
 #' @param sep Separator for combined coordinates (default: ", ").
 #' @param digits Number of decimal places for coordinates (default: 6).
@@ -237,8 +237,8 @@ euiss_coords_to_sf <- function(df,
 #' @export
 euiss_sf_to_coords <- function(sf_data,
                                format = "separate",
-                               x_name = "longitude",
-                               y_name = "latitude",
+                               x_name = "lon",
+                               y_name = "lat",
                                coords_name = "coords",
                                sep = ", ",
                                digits = 6,

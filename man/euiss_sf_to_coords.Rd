@@ -7,8 +7,8 @@
 euiss_sf_to_coords(
   sf_data,
   format = "separate",
-  x_name = "longitude",
-  y_name = "latitude",
+  x_name = "lon",
+  y_name = "lat",
   coords_name = "coords",
   sep = ", ",
   digits = 6,
@@ -20,9 +20,9 @@ euiss_sf_to_coords(
 
 \item{format}{Output format: "separate" (x and y columns) or "combined" (single column).}
 
-\item{x_name}{Name for x coordinate column (longitude) (default: "x").}
+\item{x_name}{Name for x coordinate column (longitude) (default: "lon").}
 
-\item{y_name}{Name for y coordinate column (latitude) (default: "y").}
+\item{y_name}{Name for y coordinate column (latitude) (default: "lat").}
 
 \item{coords_name}{Name for combined coordinates column (default: "coords").}
 
