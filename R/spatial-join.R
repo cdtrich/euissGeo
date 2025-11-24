@@ -120,10 +120,8 @@ euiss_left_join <- function(df,
   
   # Convert to ISO3 codes
   if (country_format == "iso3c") {
-    # Already in ISO3 format
     iso3_codes <- country_names
   } else {
-    # Use consolidated standardization function
     iso3_codes <- .standardize_country_codes(
       country_names,
       origin = country_format,
@@ -156,12 +154,15 @@ euiss_left_join <- function(df,
     }
   }
   
-  # Validate join key exists in sf
-  sf_join_col <- names(by)
-  if (length(sf_join_col) == 0) {
-    sf_join_col <- by[1]
+  # Extract sf join column (the VALUE from the named vector)
+  # For by = c("df_col" = "sf_col"), we need "sf_col"
+  sf_join_col <- if (length(names(by)) > 0 && !is.null(names(by)[1]) && names(by)[1] != "") {
+    unname(by)[1]  # Named vector: extract the value
+  } else {
+    by[1]  # Unnamed: use as-is
   }
   
+  # Validate join key exists in sf
   if (!sf_join_col %in% names(sf)) {
     stop(
       "Join column '", sf_join_col, "' not found in sf object.\n",
@@ -170,13 +171,13 @@ euiss_left_join <- function(df,
     )
   }
   
-  # Perform the join
-  join_by <- setNames(".iso3c_temp", sf_join_col)
+  # Perform the join: df$.iso3c_temp = sf$[sf_join_col]
+  join_by <- setNames(sf_join_col, ".iso3c_temp")
   
   result <- tryCatch({
     df_with_iso %>%
       dplyr::left_join(sf, by = join_by, ...) %>%
-      dplyr::select(-.data$.iso3c_temp)  # Clean up temp column
+      dplyr::select(-.data$.iso3c_temp)
   }, error = function(e) {
     stop("Join operation failed: ", e$message, call. = FALSE)
   })
