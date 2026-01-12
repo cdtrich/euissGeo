@@ -1,10 +1,3 @@
-#' Spatial Joining Functions
-#' 
-#' Functions for joining spatial and non-spatial data with enhanced country code handling.
-#' 
-#' @name spatial-join
-NULL
-
 #' Left join data frame with sf object using country codes
 #'
 #' Performs a left join between a data frame and an sf object based on country codes.
@@ -31,6 +24,7 @@ NULL
 #'   \item Kosovo (assigns custom ISO3 code)
 #'   \item Country name variations (uses countrycode package)
 #'   \item Missing matches (reports unmatched countries)
+#'   \item Factor columns (automatically converted to character)
 #' }
 #'
 #' @examples
@@ -101,9 +95,13 @@ euiss_left_join <- function(df,
     )
   }
   
-  # Extract country names
-  country_names <- df[[country]]
-  unique_countries <- unique(country_names[!is.na(country_names)])
+  # Extract country names and convert to character (handles factors)
+  country_names <- as.character(df[[country]])
+  unique_countries <- unique(country_names[!is.na(country_names) & country_names != ""])
+  
+  if (length(unique_countries) == 0) {
+    stop("No valid country names found in column '", country, "'", call. = FALSE)
+  }
   
   if (verbose) {
     message("Processing ", length(unique_countries), " unique countries")
@@ -120,8 +118,10 @@ euiss_left_join <- function(df,
   
   # Convert to ISO3 codes
   if (country_format == "iso3c") {
+    # Already in ISO3 format
     iso3_codes <- country_names
   } else {
+    # Use consolidated standardization function
     iso3_codes <- .standardize_country_codes(
       country_names,
       origin = country_format,
@@ -136,7 +136,7 @@ euiss_left_join <- function(df,
     dplyr::mutate(.iso3c_temp = iso3_codes)
   
   # Check for unmatched countries
-  unmatched <- is.na(iso3_codes) & !is.na(country_names)
+  unmatched <- is.na(iso3_codes) & !is.na(country_names) & country_names != ""
   if (any(unmatched)) {
     unmatched_countries <- unique(country_names[unmatched])
     
@@ -154,15 +154,12 @@ euiss_left_join <- function(df,
     }
   }
   
-  # Extract sf join column (the VALUE from the named vector)
-  # For by = c("df_col" = "sf_col"), we need "sf_col"
-  sf_join_col <- if (length(names(by)) > 0 && !is.null(names(by)[1]) && names(by)[1] != "") {
-    unname(by)[1]  # Named vector: extract the value
-  } else {
-    by[1]  # Unnamed: use as-is
+  # Validate join key exists in sf
+  sf_join_col <- names(by)
+  if (length(sf_join_col) == 0) {
+    sf_join_col <- by[1]
   }
   
-  # Validate join key exists in sf
   if (!sf_join_col %in% names(sf)) {
     stop(
       "Join column '", sf_join_col, "' not found in sf object.\n",
@@ -171,13 +168,13 @@ euiss_left_join <- function(df,
     )
   }
   
-  # Perform the join: df$.iso3c_temp = sf$[sf_join_col]
-  join_by <- setNames(sf_join_col, ".iso3c_temp")
+  # Perform the join
+  join_by <- setNames(".iso3c_temp", sf_join_col)
   
   result <- tryCatch({
     df_with_iso %>%
       dplyr::left_join(sf, by = join_by, ...) %>%
-      dplyr::select(-.data$.iso3c_temp)
+      dplyr::select(-.data$.iso3c_temp)  # Clean up temp column
   }, error = function(e) {
     stop("Join operation failed: ", e$message, call. = FALSE)
   })
