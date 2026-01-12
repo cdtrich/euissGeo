@@ -51,6 +51,7 @@ Special cases:
   \item Kosovo (assigns custom ISO3 code)
   \item Country name variations (uses countrycode package)
   \item Missing matches (reports unmatched countries)
+  \item Factor columns (automatically converted to character)
 }
 }
 \examples{
