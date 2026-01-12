@@ -8,7 +8,9 @@ euiss_left_join(
   df,
   sf,
   country = "country",
-  by = c(iso3c = "ISO3_CODE"),
+  sf_code_col = "ISO3_CODE",
+  keep_sf_cols = TRUE,
+  to_sf = TRUE,
   country_format = "auto",
   handle_kosovo = TRUE,
   kosovo_code = "KOS",
@@ -23,7 +25,12 @@ euiss_left_join(
 
 \item{country}{Name of the column in df containing country names.}
 
-\item{by}{Join specification: c("df_column" = "sf_column").}
+\item{sf_code_col}{Name of the ISO3 code column in sf object (default: "ISO3_CODE").}
+
+\item{keep_sf_cols}{Which columns to keep from sf: TRUE (all), FALSE (geometry only), 
+or character vector of column names (default: TRUE).}
+
+\item{to_sf}{Return result as sf object? (default: TRUE).}
 
 \item{country_format}{Format for country matching: "auto", "iso3c", "iso2c", "country.name".}
 
@@ -36,7 +43,7 @@ euiss_left_join(
 \item{...}{Additional arguments passed to dplyr::left_join().}
 }
 \value{
-Data frame with result of left join operation.
+Data frame or sf object (depending on to_sf parameter) with joined data.
 }
 \description{
 Performs a left join between a data frame and an sf object based on country codes.
@@ -56,24 +63,23 @@ Special cases:
 }
 \examples{
 \dontrun{
-# Example data
-df <- data.frame(
-  country = c("United States", "Canada", "Germany", "Kosovo"),
-  value = c(100, 200, 150, 75)
-)
+# Basic usage - keep all sf columns, return as sf
+result <- euiss_left_join(df, euiss_gisco(res = "20"), country = "Country")
 
-# Load GISCO data
-countries_sf <- euiss_gisco(res = "20")
+# Keep only specific columns from sf
+result <- euiss_left_join(df, euiss_gisco(res = "20"), 
+                          country = "Country",
+                          keep_sf_cols = c("ISO3_CODE", "NAME_ENGL"))
 
-# Perform spatial join
-result <- euiss_left_join(df, countries_sf, country = "country")
+# Keep only geometry
+result <- euiss_left_join(df, euiss_gisco(res = "20"),
+                          country = "Country", 
+                          keep_sf_cols = FALSE)
 
-# Custom join columns
-result <- euiss_left_join(
-  df, countries_sf,
-  country = "country",
-  by = c("iso3c" = "ISO3_CODE")
-)
+# Return as regular data frame
+result <- euiss_left_join(df, euiss_gisco(res = "20"),
+                          country = "Country",
+                          to_sf = FALSE)
 }
 
 }

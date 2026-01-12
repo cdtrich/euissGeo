@@ -7,14 +7,17 @@
 #' @param df Data frame containing country information.
 #' @param sf Simple Features (sf) object with country codes.
 #' @param country Name of the column in df containing country names.
-#' @param by Join specification: c("df_column" = "sf_column").
+#' @param sf_code_col Name of the ISO3 code column in sf object (default: "ISO3_CODE").
+#' @param keep_sf_cols Which columns to keep from sf: TRUE (all), FALSE (geometry only), 
+#'   or character vector of column names (default: TRUE).
+#' @param to_sf Return result as sf object? (default: TRUE).
 #' @param country_format Format for country matching: "auto", "iso3c", "iso2c", "country.name".
 #' @param handle_kosovo Handle Kosovo specially? (default: TRUE)
 #' @param kosovo_code ISO3 code for Kosovo (default: "KOS").
 #' @param verbose Print information about country matching? (default: FALSE)
 #' @param ... Additional arguments passed to dplyr::left_join().
 #'
-#' @return Data frame with result of left join operation.
+#' @return Data frame or sf object (depending on to_sf parameter) with joined data.
 #'
 #' @details
 #' Enhances standard spatial joins by automatically handling country name standardization.
@@ -29,24 +32,23 @@
 #'
 #' @examples
 #' \dontrun{
-#' # Example data
-#' df <- data.frame(
-#'   country = c("United States", "Canada", "Germany", "Kosovo"),
-#'   value = c(100, 200, 150, 75)
-#' )
+#' # Basic usage - keep all sf columns, return as sf
+#' result <- euiss_left_join(df, euiss_gisco(res = "20"), country = "Country")
 #' 
-#' # Load GISCO data
-#' countries_sf <- euiss_gisco(res = "20")
+#' # Keep only specific columns from sf
+#' result <- euiss_left_join(df, euiss_gisco(res = "20"), 
+#'                           country = "Country",
+#'                           keep_sf_cols = c("ISO3_CODE", "NAME_ENGL"))
 #' 
-#' # Perform spatial join
-#' result <- euiss_left_join(df, countries_sf, country = "country")
+#' # Keep only geometry
+#' result <- euiss_left_join(df, euiss_gisco(res = "20"),
+#'                           country = "Country", 
+#'                           keep_sf_cols = FALSE)
 #' 
-#' # Custom join columns
-#' result <- euiss_left_join(
-#'   df, countries_sf,
-#'   country = "country",
-#'   by = c("iso3c" = "ISO3_CODE")
-#' )
+#' # Return as regular data frame
+#' result <- euiss_left_join(df, euiss_gisco(res = "20"),
+#'                           country = "Country",
+#'                           to_sf = FALSE)
 #' }
 #'
 #' @import countrycode
@@ -57,7 +59,9 @@
 euiss_left_join <- function(df,
                             sf,
                             country = "country",
-                            by = c("iso3c" = "ISO3_CODE"),
+                            sf_code_col = "ISO3_CODE",
+                            keep_sf_cols = TRUE,
+                            to_sf = TRUE,
                             country_format = "auto",
                             handle_kosovo = TRUE,
                             kosovo_code = "KOS",
@@ -94,6 +98,18 @@ euiss_left_join <- function(df,
       call. = FALSE
     )
   }
+  
+  # Validate sf_code_col exists in sf
+  if (!sf_code_col %in% names(sf)) {
+    stop(
+      "Join column '", sf_code_col, "' not found in sf object.\n",
+      "Available columns: ", paste(names(sf), collapse = ", "),
+      call. = FALSE
+    )
+  }
+  
+  # Select columns from sf based on keep_sf_cols parameter
+  sf_filtered <- .filter_sf_columns(sf, sf_code_col, keep_sf_cols, verbose)
   
   # Extract country names and convert to character (handles factors)
   country_names <- as.character(df[[country]])
@@ -154,40 +170,28 @@ euiss_left_join <- function(df,
     }
   }
   
-  # Validate join key exists in sf
-  sf_join_col <- names(by)
-  if (length(sf_join_col) == 0) {
-    sf_join_col <- by[1]
-  }
-  
-  if (!sf_join_col %in% names(sf)) {
-    stop(
-      "Join column '", sf_join_col, "' not found in sf object.\n",
-      "Available columns: ", paste(names(sf), collapse = ", "),
-      call. = FALSE
-    )
-  }
-  
   # Perform the join
-  join_by <- setNames(".iso3c_temp", sf_join_col)
+  # For left_join: by = c("left_col" = "right_col")
+  join_by <- setNames(sf_code_col, ".iso3c_temp")
   
   result <- tryCatch({
     df_with_iso %>%
-      dplyr::left_join(sf, by = join_by, ...) %>%
-      dplyr::select(-.data$.iso3c_temp)  # Clean up temp column
+      dplyr::left_join(sf_filtered, by = join_by, ...) %>%
+      # Rename .iso3c_temp to the original sf column name to preserve ISO codes
+      dplyr::rename(!!sf_code_col := .data$.iso3c_temp)
   }, error = function(e) {
     stop("Join operation failed: ", e$message, call. = FALSE)
   })
   
   # Report join results
   if (verbose) {
-    n_matched <- sum(!is.na(result$geometry))
+    n_matched <- sum(!is.na(sf::st_geometry(result)))
     n_total <- nrow(result)
     message("Join completed: ", n_matched, "/", n_total, " rows matched")
     
     if (n_matched < n_total) {
       unjoined_countries <- result %>%
-        dplyr::filter(is.na(.data$geometry)) %>%
+        dplyr::filter(is.na(sf::st_geometry(.))) %>%
         dplyr::pull(!!rlang::sym(country)) %>%
         unique()
       
@@ -196,7 +200,77 @@ euiss_left_join <- function(df,
     }
   }
   
+  # Convert to sf if requested
+  if (to_sf && !inherits(result, "sf")) {
+    if ("geometry" %in% names(result)) {
+      result <- tryCatch({
+        sf::st_as_sf(result)
+      }, error = function(e) {
+        warning("Could not convert to sf object: ", e$message, call. = FALSE)
+        result
+      })
+    } else {
+      warning("No geometry column found. Returning as data frame.", call. = FALSE)
+    }
+  }
+  
+  # Drop geometry if to_sf = FALSE
+  if (!to_sf && inherits(result, "sf")) {
+    result <- sf::st_drop_geometry(result)
+  }
+  
   result
+}
+
+#' Filter sf columns based on keep_sf_cols parameter
+#' @keywords internal
+#' @noRd
+.filter_sf_columns <- function(sf, sf_code_col, keep_sf_cols, verbose) {
+  
+  # Get geometry column name
+  geom_col <- attr(sf, "sf_column")
+  
+  if (isTRUE(keep_sf_cols)) {
+    # Keep all columns
+    if (verbose) {
+      message("Keeping all columns from sf object")
+    }
+    return(sf)
+    
+  } else if (isFALSE(keep_sf_cols)) {
+    # Keep only join column and geometry
+    cols_to_keep <- c(sf_code_col, geom_col)
+    if (verbose) {
+      message("Keeping only join column and geometry from sf object")
+    }
+    return(sf %>% dplyr::select(dplyr::all_of(cols_to_keep)))
+    
+  } else if (is.character(keep_sf_cols)) {
+    # Keep specified columns plus join column and geometry
+    cols_to_keep <- unique(c(sf_code_col, keep_sf_cols, geom_col))
+    
+    # Check all requested columns exist
+    missing_cols <- setdiff(keep_sf_cols, names(sf))
+    if (length(missing_cols) > 0) {
+      warning(
+        "Columns not found in sf object: ", paste(missing_cols, collapse = ", "),
+        call. = FALSE
+      )
+    }
+    
+    # Keep only columns that exist
+    cols_to_keep <- intersect(cols_to_keep, names(sf))
+    
+    if (verbose) {
+      message("Keeping specified columns from sf object: ", 
+              paste(setdiff(cols_to_keep, geom_col), collapse = ", "))
+    }
+    
+    return(sf %>% dplyr::select(dplyr::all_of(cols_to_keep)))
+    
+  } else {
+    stop("`keep_sf_cols` must be TRUE, FALSE, or a character vector", call. = FALSE)
+  }
 }
 
 #' Detect country format from sample
