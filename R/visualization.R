@@ -169,7 +169,6 @@ euiss_spikemap <- function(data,
 #' @noRd
 .create_spike_polygons <- function(spike_base, fact, spread) {
   
-  # Pre-calculate all coordinates
   spike_base <- spike_base %>%
     dplyr::mutate(
       spike_id = dplyr::row_number(),
@@ -179,33 +178,26 @@ euiss_spikemap <- function(data,
       y_peak = .data$y + .data$val * fact
     )
   
-  # Create triangle vertices for each spike
-  # Each triangle: left-base, peak, right-base, close
   left_points <- spike_base %>%
-    dplyr::select(.data$spike_id, x = .data$x_left, y = .data$y_base, 
-                  .data$val, dplyr::everything()) %>%
-    dplyr::select(-.data$x_left, -.data$x_right, -.data$y_base, -.data$y_peak)
+    dplyr::select(-.data$x, -.data$y, -.data$x_right, -.data$y_peak) %>%
+    dplyr::rename(x = .data$x_left, y = .data$y_base)
   
   peak_points <- spike_base %>%
-    dplyr::select(.data$spike_id, x = .data$x, y = .data$y_peak, 
-                  .data$val, dplyr::everything()) %>%
-    dplyr::select(-.data$x_left, -.data$x_right, -.data$y_base, -.data$y_peak)
+    dplyr::select(-.data$x, -.data$y, -.data$x_left, -.data$x_right, -.data$y_base) %>%
+    dplyr::rename(y = .data$y_peak) %>%
+    dplyr::mutate(x = spike_base$x)   # peak x is centroid x
   
   right_points <- spike_base %>%
-    dplyr::select(.data$spike_id, x = .data$x_right, y = .data$y_base, 
-                  .data$val, dplyr::everything()) %>%
-    dplyr::select(-.data$x_left, -.data$x_right, -.data$y_base, -.data$y_peak)
+    dplyr::select(-.data$x, -.data$y, -.data$x_left, -.data$y_peak) %>%
+    dplyr::rename(x = .data$x_right, y = .data$y_base)
   
-  # Combine in triangle order (with closing point)
-  result <- dplyr::bind_rows(
+  dplyr::bind_rows(
     left_points,
     peak_points,
     right_points,
-    left_points  # Close the polygon
+    left_points
   ) %>%
     dplyr::arrange(.data$spike_id)
-  
-  result
 }
 
 #' Create spike line coordinates (legacy format)
