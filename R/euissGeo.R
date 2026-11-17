@@ -77,10 +77,10 @@
 #' @name euissGeo-package
 #' @aliases euissGeo
 #' 
+#' @importFrom utils head
 #' @import dplyr
 #' @import sf
 #' @import ggplot2
-#' @import terra
 #' @importFrom magrittr %>%
 #' 
 "_PACKAGE"

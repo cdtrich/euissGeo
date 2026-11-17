@@ -50,7 +50,6 @@ NULL
 #'
 #' @import dplyr
 #' @import sf
-#' @import tidyr
 #'
 #' @export
 euiss_coords_to_sf <- function(df,

@@ -217,19 +217,11 @@ euiss_basemap <- function(country = "Belgium",
   )
   
   # Try euissR colors
-  if (requireNamespace("euissR", quietly = TRUE)) {
-    tryCatch({
-      teal <- euissR::pal_cat_euiss_enhanced(6)[2]
-      col_axis <- "#000"
-      col_grid <- euissR::pal_seq_v_euiss(1)
-      teal3 <- euissR::pal_seq_b_euiss(4)[2]
-      
-      default_colors$water <- teal
-      default_colors$borders <- col_axis
-      default_colors$urban <- col_grid
-      default_colors$urban_label <- teal3
-    }, error = function(e) invisible())
-  }
+  # Use euissR style values where available
+  default_colors$water       <- .euiss_style("teal",     default_colors$water)
+  default_colors$borders     <- .euiss_style("col_axis", default_colors$borders)
+  default_colors$urban       <- .euiss_style("col_grid", default_colors$urban)
+  default_colors$urban_label <- .euiss_style("teal3",    default_colors$urban_label)  
   
   default_colors
 }

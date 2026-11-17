@@ -7,43 +7,47 @@ NULL
 
 #' Retrieve geographic data from Eurostat GISCO service
 #'
-#' Fetches geographic data from Eurostat GISCO service. Data is retrieved from
-#' local shapefile archives with support for different spatial types, resolutions,
-#' years, projections, boundary types, and country subsets.
+#' Fetches geographic data from Eurostat GISCO. GeoJSON is always tried first:
+#' (1) online from the GISCO distribution server, (2) a local GeoJSON copy,
+#' and only then (3) the legacy local shapefile zip archives.
 #'
 #' @param res Resolution of map data: "60", "20", "10", "03", "01" (million scale).
+#'   Ignored for `shp = "LB"`.
 #' @param verbose Print additional information during execution? (default: TRUE)
-#' @param type Type of geographic data (default: "countries").
+#' @param type "countries" (default), "communes" or "coastlines".
+#'   Communes are fixed to 2016 / 01M; coastlines to RG / 2016.
 #' @param shp Shape of data: "RG" (regions), "BN" (boundaries), "LB" (labels).
-#' @param bordertype Boundary type for "BN" shape: "INLAND" or "COASTL".
-#' @param year NUTS regulation year: "2024", "2020", "2016", "2013", "2010", "2006", "2003".
+#' @param bordertype Boundary type for "BN" shape: "INLAND", "COASTL", or "ALL"
+#'   (the plain, unsuffixed boundary file).
+#' @param year Reference year: "2024", "2020", "2016", "2013", "2010", "2006", "2003".
 #' @param crs Coordinate reference system: "4326" (WGS84), "3035" (ETRS89), "3857" (Web Mercator).
-#' @param data_path Base path for GISCO data. If NULL, uses configured paths.
+#' @param data_path Base path for local GISCO data. If NULL, uses configured paths
+#'   (only resolved if the online route fails or is skipped).
+#' @param source Where to look: "auto" (online, then local; default), "online"
+#'   (online only), or "local" (local only).
+#' @param timeout Download timeout in seconds (default: 120).
 #'
 #' @return Simple Features (sf) object with requested geographic data.
 #'
 #' @details
-#' Expects GISCO data to be downloaded and available locally. Data structure
-#' should follow GISCO naming conventions:
-#' \code{ref-countries-YYYY-SSm.shp.zip}
-#' 
-#' Use \code{euiss_check_gisco_data()} to verify available data files.
+#' Online files follow
+#' \code{https://gisco-services.ec.europa.eu/distribution/v2/countries/geojson/CNTR_RG_20M_2024_4326.geojson}.
+#' Local files are searched recursively under \code{data_path} by file name,
+#' so flat and sub-foldered layouts both work.
+#' The legacy zip route expects \code{ref-countries-YYYY-SSm.shp.zip}.
 #'
 #' @examples
 #' \dontrun{
-#' # Retrieve countries at 20M resolution
-#' countries <- euiss_gisco(res = "20", verbose = TRUE)
-#' 
-#' # Get country boundaries only
+#' countries <- euiss_gisco(res = "20")
 #' boundaries <- euiss_gisco(res = "10", shp = "BN", bordertype = "COASTL")
-#' 
-#' # Get country labels/centroids
-#' labels <- euiss_gisco(res = "20", shp = "LB")
+#' labels <- euiss_gisco(shp = "LB")
+#' coast <- euiss_gisco(res = "10", type = "coastlines")
+#' offline <- euiss_gisco(res = "20", source = "local")
 #' }
 #'
 #' @import dplyr
 #' @import sf
-#' @importFrom utils unzip
+#' @importFrom utils unzip download.file
 #'
 #' @export
 euiss_gisco <- function(res = "60",
@@ -53,9 +57,18 @@ euiss_gisco <- function(res = "60",
                         bordertype = "INLAND",
                         year = "2024",
                         crs = "4326",
-                        data_path = NULL) {
+                        data_path = NULL,
+                        source = c("auto", "online", "local"),
+                        timeout = 120) {
   
-  # Input validation
+  source <- match.arg(source)
+  
+  # --- Input validation ------------------------------------------------------
+  valid_type <- c("countries", "communes", "coastlines")
+  if (!type %in% valid_type) {
+    stop("`type` must be one of: ", paste(valid_type, collapse = ", "), call. = FALSE)
+  }
+  
   valid_res <- c("01", "03", "10", "20", "60")
   if (!res %in% valid_res) {
     stop("`res` must be one of: ", paste(valid_res, collapse = ", "), call. = FALSE)
@@ -71,94 +84,186 @@ euiss_gisco <- function(res = "60",
     stop("`crs` must be one of: ", paste(valid_crs, collapse = ", "), call. = FALSE)
   }
   
-  valid_years <- c("2024", "2020", "2016", "2013", "2010", "2006", "2003")
-  if (!year %in% valid_years) {
-    stop("`year` must be one of: ", paste(valid_years, collapse = ", "), call. = FALSE)
+  if (type == "countries") {
+    valid_years <- c("2024", "2020", "2016", "2013", "2010", "2006", "2003")
+    if (!year %in% valid_years) {
+      stop("`year` must be one of: ", paste(valid_years, collapse = ", "), call. = FALSE)
+    }
   }
   
-  if (shp == "BN") {
-    valid_bordertype <- c("INLAND", "COASTL")
+  if (type == "countries" && shp == "BN") {
+    valid_bordertype <- c("INLAND", "COASTL", "ALL")
     if (!bordertype %in% valid_bordertype) {
       stop("`bordertype` must be one of: ", paste(valid_bordertype, collapse = ", "), call. = FALSE)
     }
   }
   
-  # Get data path
-  if (is.null(data_path)) {
-    paths <- euiss_configure_paths(verbose = FALSE)
-    data_path <- paths$gisco
+  # --- Fixed parameters for non-country types -------------------------------
+  if (type == "communes") {
+    year <- "2016"
+    res <- "01"
+  } else if (type == "coastlines") {
+    year <- "2016"
+    shp <- "RG"
   }
   
-  if (!dir.exists(data_path)) {
-    stop(
-      "GISCO data directory not found: ", data_path, "\n",
-      "Use euiss_configure_paths() to set up data directories.",
-      call. = FALSE
-    )
-  }
+  geojson_name <- .gisco_geojson_name(type, shp, res, year, crs, bordertype)
   
-  # Build file paths
-  path_zip <- if (type == "communes") "COMM" else "CNTR"
-  year_adjusted <- if (type == "communes") "2016" else year
-  res_adjusted <- if (type == "communes") "01" else res
+  # --- 1. Online GeoJSON -----------------------------------------------------
+  data <- NULL
   
-  # Construct outer zip filename
-  zip_filename <- sprintf("ref-%s-%s-%sm.shp.zip", type, year_adjusted, res_adjusted)
-  zip_path <- file.path(data_path, zip_filename)
-  
-  # Check if file exists
-  if (!file.exists(zip_path)) {
-    available_files <- list.files(data_path, pattern = "\\.zip$")
+  if (source %in% c("auto", "online")) {
+    url <- .gisco_geojson_url(type, geojson_name)
+    if (verbose) message("Trying online GeoJSON: ", geojson_name)
+    data <- .gisco_read_online(url, timeout, verbose)
     
-    if (length(available_files) == 0) {
+    if (is.null(data) && source == "online") {
+      stop("Could not retrieve GeoJSON from: ", url, call. = FALSE)
+    }
+  }
+  
+  # --- 2./3. Local GeoJSON, then legacy zip ----------------------------------
+  if (is.null(data)) {
+    
+    if (is.null(data_path)) {
+      paths <- euiss_configure_paths(verbose = FALSE)
+      data_path <- paths$gisco
+    }
+    
+    if (!dir.exists(data_path)) {
       stop(
-        "No GISCO data files found in: ", data_path, "\n",
-        "Download GISCO data first or check path configuration.",
+        "GISCO data directory not found: ", data_path, "\n",
+        "Use euiss_configure_paths() to set up data directories.",
         call. = FALSE
       )
-    } else {
+    }
+    
+    local_file <- .gisco_find_local(data_path, geojson_name)
+    
+    if (!is.null(local_file)) {
+      if (verbose) message("Loading local GeoJSON: ", local_file)
+      data <- sf::st_read(local_file, quiet = TRUE)
+      
+    } else if (type != "coastlines") {
+      # Legacy zip route
+      zip_filename <- sprintf("ref-%s-%s-%sm.shp.zip", type, year, res)
+      zip_path <- file.path(data_path, zip_filename)
+      
+      if (file.exists(zip_path)) {
+        if (verbose) message("GeoJSON not found locally; loading legacy zip: ", zip_filename)
+        path_zip <- if (type == "communes") "COMM" else "CNTR"
+        data <- .load_gisco_nested_zip(
+          zip_path, path_zip, shp, res, year, crs, bordertype, verbose
+        )
+      }
+    }
+    
+    if (is.null(data)) {
       stop(
-        "GISCO data file not found: ", zip_filename, "\n",
-        "Available files: ", paste(available_files, collapse = ", "), "\n",
-        "Check parameters or download required data.",
+        "GISCO data not found.\n",
+        "  Online: ", if (source == "local") "skipped" else "failed", "\n",
+        "  Local GeoJSON: ", geojson_name, " not found under ", data_path, "\n",
+        if (type != "coastlines") paste0(
+          "  Legacy zip: ", sprintf("ref-%s-%s-%sm.shp.zip", type, year, res), " not found\n"
+        ),
+        "Check parameters, connection, or download the file to the GISCO data folder.",
         call. = FALSE
       )
     }
   }
   
   if (verbose) {
-    message("Loading GISCO ", type, " data: ", zip_filename)
-  }
-  
-  # Load data with nested zip handling
-  data <- .load_gisco_nested_zip(
-    zip_path, 
-    path_zip, 
-    shp, 
-    res_adjusted, 
-    year_adjusted, 
-    crs, 
-    bordertype,
-    verbose
-  )
-  
-  if (verbose) {
     message(
-      "Successfully loaded: ", nrow(data), " features at ",
-      res, "M resolution"
+      "Successfully loaded: ", nrow(data), " features",
+      if (shp != "LB") paste0(" at ", res, "M resolution")
     )
   }
   
   data
 }
 
-#' Load GISCO data from nested zip structure
+#' Build GISCO GeoJSON file name
+#' @keywords internal
+#' @noRd
+.gisco_geojson_name <- function(type, shp, res, year, crs, bordertype) {
+  
+  prefix <- c(countries = "CNTR", communes = "COMM", coastlines = "COAS")[[type]]
+  
+  core <- if (shp == "LB") {
+    sprintf("%s_LB_%s_%s", prefix, year, crs)
+  } else {
+    sprintf("%s_%s_%sM_%s_%s", prefix, shp, res, year, crs)
+  }
+  
+  if (type == "countries" && shp == "BN" && bordertype != "ALL") {
+    core <- paste0(core, "_", bordertype)
+  }
+  
+  paste0(core, ".geojson")
+}
+
+#' Build GISCO GeoJSON URL
+#' @keywords internal
+#' @noRd
+.gisco_geojson_url <- function(type, filename) {
+  folder <- c(countries = "countries", communes = "communes", coastlines = "coas")[[type]]
+  sprintf(
+    "https://gisco-services.ec.europa.eu/distribution/v2/%s/geojson/%s",
+    folder, filename
+  )
+}
+
+#' Download and read a GeoJSON; returns NULL on any failure
+#' @keywords internal
+#' @noRd
+.gisco_read_online <- function(url, timeout, verbose) {
+  
+  tmp <- tempfile(fileext = ".geojson")
+  old_opts <- options(timeout = timeout)
+  on.exit({
+    options(old_opts)
+    unlink(tmp)
+  }, add = TRUE)
+  
+  ok <- tryCatch({
+    utils::download.file(url, tmp, mode = "wb", quiet = TRUE)
+    file.exists(tmp) && file.size(tmp) > 0
+  },
+  error = function(e) {
+    if (verbose) message("  Online download failed: ", conditionMessage(e))
+    FALSE
+  },
+  warning = function(w) {
+    if (verbose) message("  Online download failed: ", conditionMessage(w))
+    FALSE
+  })
+  
+  if (!isTRUE(ok)) return(NULL)
+  
+  tryCatch(
+    sf::st_read(tmp, quiet = TRUE),
+    error = function(e) {
+      if (verbose) message("  Downloaded file could not be read: ", conditionMessage(e))
+      NULL
+    }
+  )
+}
+
+#' Find a GeoJSON file by name anywhere under data_path; NULL if absent
+#' @keywords internal
+#' @noRd
+.gisco_find_local <- function(data_path, filename) {
+  files <- list.files(data_path, pattern = "\\.geojson$", recursive = TRUE, full.names = TRUE)
+  hit <- files[tolower(basename(files)) == tolower(filename)]
+  if (length(hit) == 0) NULL else hit[1]
+}
+
+#' Load GISCO data from nested zip structure (legacy)
 #' @keywords internal
 #' @noRd
 .load_gisco_nested_zip <- function(outer_zip, path_zip, shp, res, year, crs, 
                                    bordertype, verbose) {
   
-  # Create temporary directories
   temp_outer <- tempfile()
   temp_inner <- tempfile()
   
@@ -167,7 +272,6 @@ euiss_gisco <- function(res = "60",
     unlink(temp_inner, recursive = TRUE)
   }, add = TRUE)
   
-  # Extract outer zip
   tryCatch({
     utils::unzip(outer_zip, exdir = temp_outer)
   }, error = function(e) {
@@ -178,11 +282,9 @@ euiss_gisco <- function(res = "60",
     )
   })
   
-  # Build inner zip filename
   inner_filename <- .build_inner_filename(path_zip, shp, res, year, crs, bordertype)
   inner_zip_path <- file.path(temp_outer, inner_filename)
   
-  # Check inner zip exists
   if (!file.exists(inner_zip_path)) {
     available_inner <- list.files(temp_outer, pattern = "\\.zip$")
     stop(
@@ -192,7 +294,6 @@ euiss_gisco <- function(res = "60",
     )
   }
   
-  # Extract inner zip
   tryCatch({
     utils::unzip(inner_zip_path, exdir = temp_inner)
   }, error = function(e) {
@@ -203,7 +304,6 @@ euiss_gisco <- function(res = "60",
     )
   })
   
-  # Read shapefile
   tryCatch({
     sf::st_read(temp_inner, quiet = !verbose)
   }, error = function(e) {
@@ -215,20 +315,19 @@ euiss_gisco <- function(res = "60",
   })
 }
 
-#' Build inner zip filename based on shape type
+#' Build inner zip filename based on shape type (legacy)
 #' @keywords internal
 #' @noRd
 .build_inner_filename <- function(path_zip, shp, res, year, crs, bordertype) {
   
   if (shp == "BN") {
-    sprintf("%s_%s_%sM_%s_%s_%s.shp.zip", 
-            path_zip, shp, res, year, crs, bordertype)
+    base <- sprintf("%s_%s_%sM_%s_%s", path_zip, shp, res, year, crs)
+    if (bordertype == "ALL") sprintf("%s.shp.zip", base)
+    else sprintf("%s_%s.shp.zip", base, bordertype)
   } else if (shp == "LB") {
-    sprintf("%s_%s_%s_%s.shp.zip", 
-            path_zip, shp, year, crs)
+    sprintf("%s_%s_%s_%s.shp.zip", path_zip, shp, year, crs)
   } else if (shp == "RG") {
-    sprintf("%s_%s_%sM_%s_%s.shp.zip", 
-            path_zip, shp, res, year, crs)
+    sprintf("%s_%s_%sM_%s_%s.shp.zip", path_zip, shp, res, year, crs)
   } else {
     stop("Unknown shape type: ", shp, call. = FALSE)
   }

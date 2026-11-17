@@ -12,51 +12,59 @@ euiss_gisco(
   bordertype = "INLAND",
   year = "2024",
   crs = "4326",
-  data_path = NULL
+  data_path = NULL,
+  source = c("auto", "online", "local"),
+  timeout = 120
 )
 }
 \arguments{
-\item{res}{Resolution of map data: "60", "20", "10", "03", "01" (million scale).}
+\item{res}{Resolution of map data: "60", "20", "10", "03", "01" (million scale).
+Ignored for `shp = "LB"`.}
 
 \item{verbose}{Print additional information during execution? (default: TRUE)}
 
-\item{type}{Type of geographic data (default: "countries").}
+\item{type}{"countries" (default), "communes" or "coastlines".
+Communes are fixed to 2016 / 01M; coastlines to RG / 2016.}
 
 \item{shp}{Shape of data: "RG" (regions), "BN" (boundaries), "LB" (labels).}
 
-\item{bordertype}{Boundary type for "BN" shape: "INLAND" or "COASTL".}
+\item{bordertype}{Boundary type for "BN" shape: "INLAND", "COASTL", or "ALL"
+(the plain, unsuffixed boundary file).}
 
-\item{year}{NUTS regulation year: "2024", "2020", "2016", "2013", "2010", "2006", "2003".}
+\item{year}{Reference year: "2024", "2020", "2016", "2013", "2010", "2006", "2003".}
 
 \item{crs}{Coordinate reference system: "4326" (WGS84), "3035" (ETRS89), "3857" (Web Mercator).}
 
-\item{data_path}{Base path for GISCO data. If NULL, uses configured paths.}
+\item{data_path}{Base path for local GISCO data. If NULL, uses configured paths
+(only resolved if the online route fails or is skipped).}
+
+\item{source}{Where to look: "auto" (online, then local; default), "online"
+(online only), or "local" (local only).}
+
+\item{timeout}{Download timeout in seconds (default: 120).}
 }
 \value{
 Simple Features (sf) object with requested geographic data.
 }
 \description{
-Fetches geographic data from Eurostat GISCO service. Data is retrieved from
-local shapefile archives with support for different spatial types, resolutions,
-years, projections, boundary types, and country subsets.
+Fetches geographic data from Eurostat GISCO. GeoJSON is always tried first:
+(1) online from the GISCO distribution server, (2) a local GeoJSON copy,
+and only then (3) the legacy local shapefile zip archives.
 }
 \details{
-Expects GISCO data to be downloaded and available locally. Data structure
-should follow GISCO naming conventions:
-\code{ref-countries-YYYY-SSm.shp.zip}
-
-Use \code{euiss_check_gisco_data()} to verify available data files.
+Online files follow
+\code{https://gisco-services.ec.europa.eu/distribution/v2/countries/geojson/CNTR_RG_20M_2024_4326.geojson}.
+Local files are searched recursively under \code{data_path} by file name,
+so flat and sub-foldered layouts both work.
+The legacy zip route expects \code{ref-countries-YYYY-SSm.shp.zip}.
 }
 \examples{
 \dontrun{
-# Retrieve countries at 20M resolution
-countries <- euiss_gisco(res = "20", verbose = TRUE)
-
-# Get country boundaries only
+countries <- euiss_gisco(res = "20")
 boundaries <- euiss_gisco(res = "10", shp = "BN", bordertype = "COASTL")
-
-# Get country labels/centroids
-labels <- euiss_gisco(res = "20", shp = "LB")
+labels <- euiss_gisco(shp = "LB")
+coast <- euiss_gisco(res = "10", type = "coastlines")
+offline <- euiss_gisco(res = "20", source = "local")
 }
 
 }

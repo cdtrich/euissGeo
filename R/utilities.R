@@ -363,3 +363,19 @@ NULL
   }
   invisible()
 }
+
+#' Read a style value from euissR's internal style environment
+#' @param name Name of the style object (e.g. "col_grid", "teal").
+#' @param default Value returned if euissR or the object is unavailable.
+#' @keywords internal
+#' @noRd
+.euiss_style <- function(name, default = NULL) {
+  env <- tryCatch(
+    utils::getFromNamespace(".euiss_env", "euissR"),
+    error = function(e) NULL
+  )
+  if (is.null(env) || !exists(name, envir = env, inherits = FALSE)) {
+    return(default)
+  }
+  get(name, envir = env, inherits = FALSE)
+}
